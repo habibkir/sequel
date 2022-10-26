@@ -1,0 +1,505 @@
+per ciascuna categoria
+ - Codice
+ - Descrizione
+ - Costo complessivo status=3
+
+Costo complessivo?
+
+#+begin_src sql
+  select c.cin as codice, c.description as descr, sum(p.cost) as sum_body_once
+  from (((order o natural join orderstatus os)
+  join product p on o.product = p.pin)
+  join category c on c.cin = p.category)
+  where os.status = 3;
+  group by c.cin, c.description
+#+end_src
+
+#+begin_src sql
+  select i.nome as nome
+  from impiegato i
+  where i.stipendio > 40;
+#+end_src
+   
+#+begin_src sql
+  select os_prod.non_lo_so as ma_che_cazzo
+  from (select os.status as status, o.product as product
+  from (orderstatus os join order o on os.oin=o.oin)) as os_prod
+#+end_src
+
+* Schemi tabelle
+
+ - impiegato : matricola, nome, dipartimento, stipendio
+ - dipartimento : codice, nome, direttore
+ - progetto : codice, nome, budget, scadenza, responsabile
+ - pp : impiegato progetto
+
+
+** Quarta query
+*** sottotabella responsabili
+#+begin_src sql
+  (impiegato i join progetto p on (p.responsabile = i.matricola)) as responsabile
+#+end_src
+
+*** query queryosa
+#+begin_src sql
+  select ip.matricola
+  from
+  (progetto p join impiegato i on (i.matricola = p.responsabile)) as responsabile,
+  (impiegato i_primo join pp on (pp.impiegato = i_primo.matricola)) as ip
+  where
+  (ip.progetto = responsabile.codice) and
+  (ip.stipendio > responsabile.stipendio);
+#+end_src
+
+
+** Quinta query
+facciamo il prodotto cartesiano di progetti con progetti, ma solo su
+progetti diversi tra loro con lo stesso budget
+
+#+begin_src sql
+  select p1.codice, p1.responsabile
+  from progetto p1, progetto p2;
+#+end_src
+
+Lode al Vignoz e ai join impliciti cartesiani
+
+#+begin_src sql
+  select p1.codice, p1.responsabile
+  from progetto p1, progetto p2
+  where
+  (p1.codice <> p2.codice) and
+  (p1.budget = p2.budget);
+#+end_src
+
+** Sesta query
+*** Così il Vignoz
+*** È contento
+
+#+begin_src sql
+  select alleluja.matricola
+  from
+  (((impiegato i join pp on (i.matricola = pp.impiegato)) as ip
+  join progetto on (ip.progetto = progetto.codice)) as ip_man
+  join dipartimento d on (ip_man.dipartimento = d.codice)) as alleluja
+  where alleluja.responsabile = alleluja.direttore;
+#+end_src
+
+** Settima query
+non l'ho fatta
+
+** Ottava query
+matricola di ciascun responsabile e il numero di progetti che dirige
+
+#+begin_src sql
+  from progetto p
+  group by responsabile -- vogliamo vedere per responsabile
+#+end_src
+
+che selezioniamo?
+
+#+begin_src sql
+  select responsabile, count(codice)
+  from progetto p
+  group by responsabile;
+#+end_src
+
+non possono esserci valori nulli su quell'attributo, inoltre tutti i
+valori devono essere diversi in quanto ~codice~ è una chiave
+
+quindi non c'è differenza con
+
+#+begin_src sql
+  select responsabile, count(*)
+  from progetto p
+  group by responsabile;
+#+end_src
+
+(il voto del compitino massimo è 28)
+
+** Undicesima
+salto temporale e cardinale
+
+Per ciascun dipartiemnto, il nomde, il numero dei suoi affiliati, ed
+il numero dei suoi affiliati che sono responsabili di progetto
+
+il numero degli affiliati del dipartimento, esplicitata solo nella
+tabella impiegato
+
+e il numero di questa che risultano essere responsabili di progetto,
+relazione esplicitata solo nella clausola progetto
+
+quindi il from sarà
+#+begin_src sql
+from dipartiemnto d, impiegato i, progetto p
+#+end_src
+
+adesso mettaimo le condizioni del join
+#+begin_src sql
+  from dipartiemnto d, impiegato i, progetto p
+  where 
+#+end_src
+
+** Ok torna alla 9
+nome, cognome di ciascun impiegato e il numero di progetto a cui
+partecipa
+#+begin_src sql
+  from impiegato i, pp
+  where pp.impiegato = i.matricola
+#+end_src
+
+ora
+
+#+begin_src sql
+  select i.nome, i.cognome, count(progetto)
+  from impiegato i, pp
+  where pp.impiegato = i.matricola
+#+end_src
+
+siccome ho chiesto nome e cog devo farci group by
+
+#+begin_src sql
+  select i.nome, i.cognome, count(progetto)
+  from impiegato i, pp
+  where pp.impiegato = i.matricola
+  group by pp.progetto, i.nome, i.cognome;
+#+end_src
+
+gli attributi della target list devono essere unici all'interno di
+ogni gruppo, quindi o ci faccio il group by, o ci faccio a fanculo.
+
+la roba nella target list
+
+*** nota
+#+begin_src sql
+  select i.nome, i.cognome, count(progetto)
+  from impiegato i, pp
+  where pp.impiegato = i.matricola
+  group by i.matricola;
+#+end_src
+
+funziona lo stesso, ma gli attributi nella target list non sono nel
+group by e la cosa fa schifo, capisco che gli attributi devono essere
+unici e quella è una chiave, quindi unica, ma la cosa fa schifo.
+
+** Decima
+matricola, nome e cognome degli impiegati che sono resposabili di
+almeno due progetti
+
+serve la tabella impiegati visto che il collegamento matricola, nome,
+cognome solo li
+
+serve la tabella progetto
+
+serve un count
+
+#+begin_src sql
+  select nome, count(progetto)
+  from impiegato i, progetto p
+  where responsabile = matricola
+#+end_src
+
+ora vogliamo avere gruppi con lo stesso impiegato, quindi group by
+avrà la matricola (e nome e cognome)
+
+#+begin_src sql
+  select i.matricola, i.nome, i.cognome
+  from impiegato i, progetto p
+  where responsabile = matricola
+  group by i.matricola, i.nome, i.cognome  
+  having count(p.codice) >= 2;
+#+end_src
+
+Gino Rampollo
+
+è sbagliato mettere nella ~where~ cazzi di operatori aggregati, nella
+clausola ~on~ siamo nella condizione di un hwere
+
+nella ~having~ sono solo cazzi di operatori aggregati, non puoi
+metterci cazzi di attributi singoli
+
+** Ritorno alla 11
+Per ciascun dipartimento
+ - Nome
+ - Numero dei suoi affiliati che sono responsabili di progetto
+
+il legame tra impiegato e dipartimento affiliato è eplicitato nella
+relazione progetto
+il nome del dipartimento è esplicitato nella tabella progetto
+i responsabili di progetto sono esplicitatai nella tabella progetto   
+
+quindi
+#+begin_src sql
+  from dipratimento d,, impiegato i, progetto p
+#+end_src
+
+ora famo
+#+begin_src sql
+  from dipratimento d,, impiegato i, progetto p
+  where i.dipartimento = d.codice and i.matricola = p.responsabile
+#+end_src
+
+aggiungiamo la select, e la group by necessaria
+
+#+begin_src sql
+  select d.codice, d.nome
+  from dipratimento d,, impiegato i, progetto p
+  where i.dipartimento = d.codice and i.matricola = p.responsabile
+  group by d.codice, d.nome
+#+end_src
+
+in prima battuta si direbbe
+
+#+begin_src sql
+  select d.codice, d.nome, count(matricola)
+  from dipratimento d,, impiegato i, progetto p
+  where i.dipartimento = d.codice and i.matricola = p.responsabile
+  group by d.codice, d.nome
+#+end_src
+
+fa differenza
+
+ - ~count(*)~
+ - ~count(matricola)~
+ - ~count distinct (matricola)~
+
+?
+
+Matricola è una chiave primaria, non può avere valori nulli, quindi
+ - ~count(*)~
+ - ~count(matricola)~
+
+sono identici
+
+per sapere se ~count(distinct matricola)~ può avere risultati diversi.
+possono essrci due righe con lo stesso valore di matricola qui?
+
+con la costituzione della tabella che ho fatto nella from e where,
+possono esserci più valori con la stessa riga di matricola?
+
+sì, quando uno stesso responsabile è responsabile di più progetto,
+stesso valore in impiegato, stesso valore di matricola, diverso valore
+di progetto per cui quello stesso impiegato è responsabile.
+
+in questo caso che diff. c'è tra ~count~ e ~count distinct~?
+
+se faccio ~count~ sto contando i progetti
+se faccio ~count distinct~ sto contando le matricole
+
+se scrivo count sto contando il numero di progetti
+se scrivo count distinct sto contanto il numero di impiegati che sono
+responsabili di progetto, se uno è responsabile di 3 progetti non
+conta 3, conta la presona, non i progetti
+
+la ~select~ chiede il numero di affiliati che sono responsabili di
+progetto, non chiede il numero di progetti i cui responsabili sono
+affiliati a quel dipartimento, quindi qui si fa ~count distinct~
+
+#+begin_src sql
+  select d.codice, d.nome, count(distinct matricola)
+  from dipartimento d, impiegato i, progetto p
+  where i.dipartimento = d.codice and i.matricola = p.responsabile
+  group by d.codice, d.nome;
+#+end_src
+
+** la 12
+selezionare per ciascun dipartiemnto il nome del dipartimento ed il
+numero dei suoi affiliati che hanno cognome casini
+
+cognome casini non è una cosa aggregata, non è un count o company,
+quindi nel where
+
+#+begin_src sql
+  select d.codice, d.nome, count(matricola)
+  from dipartimento d, impiegato i
+  where i.dipartimento = d.codice and i.cognome = 'Casini'
+  group by d.codice, d.nome;
+#+end_src
+
+in questa tabella possono esserci righe divese con lo stesso valore di
+matricola, con questa join che ha fatti in realtà per ogni riga di
+impiegato, se vi ricordata che il join che segue l'integrità
+referenziale ha la cardinalità della tabella interna, in questo caso
+l'interna è l'impiegato, quindi qui che scriva
+ - ~count(*)~
+ - ~count(matricola)~
+ - ~count(distinct matricola)~
+
+non fa differenza   
+
+usare ~like~ non faceva differenza
+
+#+begin_src sql
+  select d.codice, d.nome, count(matricola)
+  from dipartimento d, impiegato i
+  where i.dipartimento = d.codice and i.cognome like 'Casini'
+  group by d.codice, d.nome;
+#+end_src
+
+questo join è un join non completo, se io avessi voluto che nel join
+fossero presenti tutti i dipartimenti, eventualmente con il conteggio
+0 sui dipartimenti che non hanno nessun casino, che avrei dovuto fare?
+
+*** join esterno
+devo usare quindi la sintassi in cui il join è esplicitato nella
+clausola from
+
+voglio che diparimento partecipi del tutto
+
+#+begin_src sql
+  from dipartimento d left join impiegato i
+  on i.dipartimento = d.codice and cognome = 'Casini'
+#+end_src
+
+la completa sarà
+
+#+begin_src sql
+  select d.codice, d.nome, count(matricola)
+  from dipartimento d left join impiegato i
+  on i.dipartimento = d.codice and cognome = 'Casini'
+  group by d.codice, d.nome;
+#+end_src
+
+#+begin_src sql
+  select d.codice, d.nome, count(distinct matricola)
+  from dipartimento d left join impiegato i
+  on i.dipartimento = d.codice and cognome like 'Casini'
+  group by d.codice, d.nome;
+#+end_src
+
+non ci sto capendo molto, non mi sono svegliato e non mi sveglierò
+fino alla fine dei tempi intempati
+
+*** una cosa a cui fare attenzione
+
+#+begin_src sql
+  select d.codice, d.nome, count(distinct matricola)
+  from dipartimento d left join impiegato i
+  on i.dipartimento = d.codice
+  where cognome like 'Casini'
+  group by d.codice, d.nome;
+#+end_src
+
+il risultato non è lo stesso, abbimo una perdita di righe
+
+le condizioni del join possono essere esplicitate o nella clausola on,
+o nella clausola where
+
+ma facendo così eseguo le due selezioni in due passi diversi, in
+questa query così com'è prima il dbms fa il join esterno, poi fa il
+where, nel join esterno compaiono anche i dipartimenti non incasinati,
+ora la clausola where trova il congome nullo per coloro che non hanno
+casini ed ecco che ti toglie le righe senza casini.
+
+se volgio che effettivamente il join esterno mantenga effettivamente
+anche le righe nulle allora questa condizione del cognome questa
+condizione devo imporla dove compare il join eserno.
+
+qui count matricola viene 0 e non null visto che il count conta i
+valori non nulli, se tutto nullo hai uno 0, alleluja
+
+** Numero ignoto
+matricola, nome, cognome degli impiegati che non partecipano a nessun progetto
+
+manetendo nel risultato anche gli impiegati che non partecipano a
+nessun progetto
+
+#+begin_src sql
+  from impiegato i join pp on i.matricola = pp.impiegato
+#+end_src
+
+un impiegato che non partecipa ad alcun progetto non compare in questo
+join, per metterci tutti gli impiegati, eventualmente con valori nulli
+in ~impiegato.progetto~
+
+quindi join esterno sinistro
+
+#+begin_src sql
+  from impiegato i left join pp on i.matricola = pp.impiegato
+#+end_src
+
+#+begin_src sql
+  select *
+  from impiegato i left join pp on i.matricola = pp.impiegato;
+#+end_src
+
+con questa query puoi vedere che Giuliano casini è uno sfaticato
+
+#+begin_src sql
+  from impiegato i right join pp on i.matricola = pp.impiegato;
+#+end_src
+non avrebbe un senso, visto che pp dipende già da impiegato, dovrei
+mettere tutte le coppie di impiegato progetto, anche quelle senza
+impiegato, ma l'integrità referenziale dice che stigrancazzi.
+
+#+begin_src sql
+  select i.matricola, i.nome, i.cognome
+  from impiegato i left join pp on i.matricola = pp.impiegato
+  group by i.matricola, i.nome, i.cognome
+  having count(progetto)=0;
+#+end_src
+con questa query puoi vedere in modo ancora più chiaro che Giuliano
+Casini è uno sfaticato del cazzo
+
+ha un conto di progetti non nulli pari a 0
+ha solo progetti nulli
+non ha progetti
+non ha motivo di esistere
+è debole
+deve morire
+
+si poteva fare anche con ~progetto is null~
+
+sql vuole mantenere una corrsipondenza con come esprimeresti la cosa
+in un linguaggio naturale, per design del linguaggio.
+
+
+
+#+begin_src sql
+  select i.matricola, i.nome, i.cognome
+  from impiegato i left join pp on i.matricola = pp.impiegato
+  where pp.progetto is null;
+#+end_src
+con questa query continuiamo a vedere che Giuliano Casini continua a
+essere uno sfaticato di merda
+
+#+begin_src sql
+  select i.matricola, i.nome, i.cognome
+  from impiegato i left join pp on i.matricola = pp.impiegato
+  group by i.matricola, i.nome, i.cognome
+  having count(progetto)=0;
+#+end_src
+va bene lo stesso
+dato che è nulla non viene contata, dato che non viene contata il
+conteggio è pari a 0.
+
+* Ultima query, arrivo dei nidi
+#+begin_src sql
+  select codice, d.nome, count(matricola) as numero
+  from impiegato i right join dipartimento on dipartimento=codice
+  group by codice, d.nome
+  having max(count(*))
+#+end_src
+
+/eh, voleeevi!/
+
+#+begin_src sql
+  select codice, d.nome, count(matricola) as numero
+  from impiegato i right join dipartimento on dipartimento=codice
+  group by codice, d.nome
+  order by numero desc
+  limit 1
+#+end_src
+
+ti da quello in cima, ma /voleeevi, eh?/, se ci sono più dipartimenti
+con quel massimo non funziona più
+
+** Nidi!
+** Nidi!
+** Nidi!
+** Nidi!
+** Nidi!
+
+la ~select~ ritorna una tabella
+puoi mettere quella tabella in un from
+gloria!, gloria!
+gloria!, gloria!

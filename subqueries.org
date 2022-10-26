@@ -1,0 +1,482 @@
+(se si prendesse una tabella possibilmente infinta di tutti gli stati
+di una macchina di moore a due registri forse si potrebbe fare una
+versione completa dell'sql)
+
+* Schema
+ - *Impiegato* : matricola, nome, cognome, dipartimento(come codice), stipendio
+ - *Progetto* : codice, nome, budget, scadenza, responsabile(come matricola)
+ - *PP* : impiegato(come matricola) <-> progetto(come codice)
+ - *Dipartimento* : codice, nome, direttore(come matricola)
+
+* Prima query
+estrarre matricola, nome, e cognome di ciascun impiegato ed il numero
+di progetti a cui partecipa, facendo comparire anche chi non partecipa
+a progetto
+ - facendo comparire anche ... -> join esterno
+ - matricola <-> nome, cognome -> serve tabella impiegato
+ - numero progetti a cui ... -> serve tabella pp, e serve group by
+   impiegato
+
+leghiamo i progetti all'impiegato con
+
+#+begin_src sql
+  pp join impiegato i on pp.impiegato = i.matricola
+#+end_src
+
+poi da questo impiegato aumentato si estrae nome, cognome, e matricola
+
+#+begin_src sql
+  select i.nome, i.cognome, i.matricola
+  from pp join impiegato i on (pp.impiegato = i.matricola)
+#+end_src
+
+e visto che vogliamo il numero di progetti (ricordandoci che la
+~select~ e la ~group by~...)
+
+#+begin_src sql
+  select i.matricola ,i.nome, i.cognome, count(progetto) as count_progetto
+  from pp join impiegato i on (pp.impiegato = i.matricola)
+  group by i.matricola, i.nome, i.cognome;
+#+end_src
+
+vogliamo far comparire anche gli impiegati sfaticati, quindi tutte le
+righe di impiegato, quindi qui
+
+#+begin_src sql
+  select i.matricola ,i.nome, i.cognome, count(progetto) as count_progetto
+  from pp right join impiegato i on (pp.impiegato = i.matricola)
+  group by i.matricola, i.nome, i.cognome;
+#+end_src
+
+e si vede che Giuliano Casini è uno stronzo
+
+* Seconda Query
+estrarre per ciascun dipartimento il nome del dipartimento ed il
+numero dei suoi affiliati che risultatno essere responsabili di
+progetto
+ - nome dipartimento -> serve tabella dipartimento
+ - impiegato affiliati a dipartimento -> serve tabella impiegati
+ - responsabili di progetto -> serve la tabella progetto
+
+si isolano innanzitutto i responsabili di progetto facendo
+#+begin_src sql
+  progetto p join impiegato i on (p.responsabile = i.matricola)
+#+end_src
+
+questo lo leghiamo a dipartimenti in modo abbastanza ovvio
+
+#+begin_src sql
+  (progetto p join impiegato i on (p.responsabile = i.matricola))
+  join dipartimento d on (d.codice = i.dipatrimento)
+#+end_src
+
+però serve che ci siano TUTTI i dipartimenti, anche quelli sfigati
+senza responsabili tra gli impiegati, quindi
+
+#+begin_src sql
+  (progetto p join impiegato i on (p.responsabile = i.matricola))
+  right join dipartimento d on (d.codice = i.dipatrimento)
+#+end_src
+
+con le solite ~select~ e ~group by~ si fa
+
+#+begin_src sql
+  select d.nome ,count(i.matricola) as n_responsabili
+  from (progetto p join impiegato i on (p.responsabile = i.matricola))
+  right join dipartimento d on (d.codice = i.dipartimento)
+  group by d.codice;
+#+end_src
+
+* Terza query
+estrarre i codici e nomi dei dipartimenti tra i cui affiliati *non* ci
+sono responsabili di progetto
+
+possiamo fare gli stronzi e copiare la query precedente, aggiungendo
+un'ultima riga in fondo
+
+#+begin_src sql
+  select d.nome ,count(i.matricola) as n_responsabili
+  from (progetto p join impiegato i on (p.responsabile = i.matricola))
+  right join dipartimento d on (d.codice = i.dipartimento)
+  group by d.codice
+  having count(i.matricola) = 0;
+#+end_src
+
+cambiando il select per rispettare la traccia
+
+#+begin_src sql
+  select d.codice, d.nome
+  from (progetto p join impiegato i on (p.responsabile = i.matricola))
+  right join dipartimento d on (d.codice = i.dipartimento)
+  group by d.codice
+  having count(i.matricola) = 0;
+#+end_src
+
+* Quarta query
+Estrarre i codici dei progetti che hanno budget massimo
+
+Questa query si divide in due passaggi
+ 1. Trova il budget massimo
+ 2. ~Select codice from progetto where budget = quello~
+
+divisa così i due passaggi non sono molto complicati, quindi
+** Primo passaggio
+#+begin_src sql
+  select max(budget) as max_bud
+  from progetto
+#+end_src
+
+** Secondo passaggio
+#+begin_src sql
+  select codice
+  from progetto
+  where budget =
+  (select max(budget) as max_bud
+  from progetto);
+#+end_src
+
+visto che la /sottoquery/ al primo passaggio si capiva che ritornava
+un solo valore, postresql ci ha fatto il favore di capire che era uno
+scalare e di trattarne il risultato come tale.
+
+* Quinta query
+
+ - nome dipartimento -> serve tabella dipartimento
+ - impiegato affiliati -> serve tabella impiegato
+
+estrarre il massimo numero di impiegati affiliati ad un dipartimento
+insieme al codice e nome del dipartimento
+
+questa si può strutturare similmente alla precedente con
+ 1. trova il massimo numero di impiegati affilitao
+ 2. vedi quale dipartimento aveva quel numero, e prendine i dati
+
+** Prima con l'all
+visto che a paragonare con ~max(count(qualcosa))~ va fatta una query
+per trovare il count, e un'altra query per trovarne il max, e solo
+dopo quelle puoi paragonare con ~max(count())~, facciamo prima con la
+clausola ~all~
+
+per riformulare con la clausola ~all~ diciamo che vogliamo i
+dipartimenti con numero di impiegato >= a quello di tutti gli altri
+dipartimenti, alla sql, ~>= all (select count(t'ha capito)...)~
+
+quindi prima troviamo i conti di tutti i dipartimenti
+#+begin_src sql
+  select count(matricola) from impiegato group by dipartimento;
+  -- oppure, che tanto matricola è chiave primaria
+  select count(*) from impiegato group by dipartimento;
+#+end_src
+
+ora paragoniamo i conti di tutti i dipartimenti a quelli appena
+ottenuti
+
+#+begin_src sql
+  select ...
+  from impiegato, dipartimento
+  group by dipartimento
+  having count(matricola) >= all
+  (select count(matricola)
+  from impiegato
+  group by dipartimento);
+#+end_src
+
+la traccia chiedeva il numero di impiegati, il codice del
+dipartimento, e il nome
+
+e mi sono ricordato adesso che esisteva la tabella dipartimento
+
+#+begin_src sql
+  select count(matricola) as n_impiegati, d.codice, d.nome
+  from impiegato i join dipartimento d on (i.dipartimento = d.codice)
+  group by i.dipartimento, d.codice, d.nome
+  having count(matricola) >= all
+  (select count(matricola)
+  from impiegato
+  group by dipartimento);
+#+end_src
+
+** Rivediamola con la sotto sotto query
+
+ci servono tre passaggi
+ - count(impiegati)
+ - max(count(impiegati))
+ - having count = max(count(impiegati)
+
+*** count(impiegati)
+#+begin_src sql
+  select count(matricola) as n_impiegati
+  from impiegato
+  group by diparimento
+#+end_src
+
+*** max(count(impiegati))
+#+begin_src sql
+  select max(conti.n_impiegati)
+  from (select count(matricola) as n_impiegati
+  from impiegato
+  group by dipartimento) as conti;
+#+end_src
+
+*** having count = max(count(impiegati))
+#+begin_src sql
+  select d.nome, d.codice, count(i.matricola)
+  from dipartimento d join impiegato i on (i.dipartimento = d.codice)
+  group by d.nome, d.codice
+  -- ricordati di non mettere la matrice nel group by, visto che è stupido
+  having count(i.matricola)= 
+  (select max(conti.n_impiegati)
+  from (select count(matricola) as n_impiegati
+  from impiegato
+  group by dipartimento) as conti);
+#+end_src
+
+come potete vedere, ho creato un mostro
+
+* Sesta query
+Estrarre matricola, nome e cognome degli impiegati che non sono
+direttori di diparimento o responsabili di progetto
+
+ci sono varii modi per risolvere questo problema, qui metterò
+ - quello che ha fatto il Pala
+ - la cazzata che ho provato a fare io
+
+** Il Pala
+#+begin_quote
+I'll select you the fuck out
+with precision and elegance
+the likes of which has never been seen before
+
+ ~ il Pala, suppongo
+#+end_quote
+
+la soluzoine qui ha una forma del tipo
+#+begin_src sql
+    select quello
+    where
+  matricola <> tutte (quelle di resposnabili) and
+  matricola <> tutte (quelle di direttori)
+#+end_src
+
+questo si fa col (sacrosanto) costrutto ~all~ nel seguente modo
+#+begin_src sql
+  select i.matricola, i.nome, i.cognome
+  from impiegato i
+  where
+  i.matricola <> all (select direttore from dipartimento) and
+  i.matricola <> all (select responsabile from progetto);
+#+end_src
+   
+gli astuti tra i lettori noteranno il ritorno di quello stronzo di
+Giuliano Casini tra i risultati
+
+** La mia cazzata
+a fare da cattivo esempio ecco come l'aveva risolta il sovrascritto
+ - select roba \\
+   except(
+   - select direttori \\
+     union
+   - select responsabili)
+
+visto che la cosa richiedeva anche il nome e cognome, e quindi una
+tabella impiegati in tutte e 3 le query, e, per l'appunto, 3 query,
+potete immaginare come questo sia più un concetto per fare un ddos che
+qualcosa che ho avuto lo sbatti di scrivere
+
+* Settima query
+Estrarre codice, nome, e budget dei progetti che hanno come
+responsabile l'impiegato che tra tutti i responsabili ha lo stipendio massimo
+ - stipendio di impiegato -> serve tabella impiegato
+ - progetti che... -> serve tabella progetti
+
+possiamo isolare i responsabili come prima facendo
+#+begin_src sql
+  impiegato i join progetto p on (i.matricola = p.responsabile)
+#+end_src
+
+di questa tabella di serve lo stipendio massimo, quindi
+
+#+begin_src sql
+  select max(i.stipendio)
+  from impiegato i join progetto p on (i.matricola = p.responsabile)
+#+end_src
+
+adesso, armati nuovamente di questa tabella impiegati, ci serve un
+~with stipendio = quello~, e visto che la query di sopra è scalare
+
+#+begin_src sql
+  select p.codice, p.nome, p.budget
+  from progetto p join impiegato i on (p.responsabile = i.matricola)
+  where i.stipendio =
+  (select max(i.stipendio)
+  from impiegato i join progetto p on (i.matricola = p.responsabile));
+#+end_src
+
+la query in questione rende un progetto dal nome molto divertente
+
+* Ottava query
+(da qui in poi sto facendo sta roba durante la lezione di statistica,
+potrebbe essere meno ordinato)
+
+(qui si potrebbe fare tipo
+#+begin_src sql
+  select distinct pp.progetto
+  from pp join impiegato i on (pp.impiegato = i.matricola)
+  group by i.dipartimento, pp.progetto
+  having count(*) = 1;
+#+end_src
+?)
+(serve la distinct visto che a uno stesso progetto può lavorare più
+gente dallo stesso dipartimento)
+(sembra tornare)
+
+estrarre il codice dei progetti a cui partecipano solo impiegati dello
+stesso dipartimento
+
+si va per negativo, vale a dire vedi tutti i progetti a cui
+partecipano impiegati da 2 o più dipartimenti, poi fai l'~except~ del
+caso e voilà
+
+** Primo passo
+quindi per gli impiegati che partecipano a 2 o più progetti
+ - legame tra impiegati e progetti -> serve la tabella pp
+ - legame tra impiegati e dipartimenti -> serve tabella impiegato
+   
+
+** Secondo passo
+ok lascia fare, per ora
+
+* Nona query
+Estrarre il codice di ongi dipartimento inseme alla matricola, nome,
+cognome, e stipendio dell-impegato che ha in quel dipartimento lo
+stipendio massimo.
+ - serve la tabella impiegato
+ - mi sa che serve solo quella
+
+questa query va divisa in due passi
+ 1. trova lo stipendio massimo per ogni dipartimento
+ 2. usa la query precedente per prendere anche dati sull'impiegato
+
+** Primo passo
+#+begin_src sql
+  select max(stipendio) as big_money
+  from impiegato
+  group by dipartimento;
+#+end_src
+
+questa andrebbe anche bene se volessimo solo gli stipendi massimi
+ma oltre a questo va legato lo stipendio massimo al dipartimento, quindi
+
+#+begin_src sql
+  select dipartimento, max(stipendio) as big_money
+  from impiegato
+  group by dipartimento;
+#+end_src
+
+** Secondo passo
+#+begin_src sql
+  select i.dipartimento, i.matricola, i.nome, i.cognome, i.stipendio
+  from impiegato i
+  where (i.dipartimento, i.stipendio) = any(
+  select dipartimento, max(stipendio) as big_money
+  from impiegato
+  group by dipartimento);
+#+end_src
+
+* Decima query
+Estrarre matricola, nome, e cognome
+dell'impiegato responsabile per il maggior numero di progetti insieme
+al numero di progetti di cui è responsabile
+(al momento lo faccio senza creare la vista)
+
+qui la dividiamo in due passi
+#+begin_src sql
+  select p.responsabile as resp, count(p.codice) as numero
+  from progetto p
+  group by p.responsabile;
+#+end_src
+
+per la seconda parte ci servirà estrarre il massimo da questa, così
+poi si joina con la tabella impiegato
+
+troviamo ora il responsabile con più progetti
+
+#+begin_src sql
+  select cnt.resp, cnt.numero
+  from (select p.responsabile as resp, count(p.codice) as numero
+  from progetto p
+  group by p.responsabile) as cnt
+  where cnt.numero >= all
+  (select count(p.codice) as numero from progetto p group by p.responsabile);
+#+end_src
+
+per questa terza parte ci servirà anche la tabella impiegato, per
+ottenere nome, cognome, et al a partire dalla matricola
+
+#+begin_src sql
+  select i.nome, i.cognome, cntcnt.numero
+  from impiegato i join
+  (select cnt.resp as resp, cnt.numero as numero
+  from (select p.responsabile as resp, count(p.codice) as numero
+  from progetto p
+  group by p.responsabile) as cnt
+  where cnt.numero >= all
+  (select count(p.codice) as numero from progetto p group by p.responsabile)) as cntcnt
+  on i.matricola = cntcnt.resp;
+#+end_src
+
+cosa cazzo ho creato, mi sa che boccio
+
+* Undicesima query
+Estrarre il numero medio degli impiegati affiliati ad un dipartimento
+
+prima associamo i dipartimenti alla conta di quanti ci sono affiliati
+#+begin_src sql
+  select i.dipartimento, count(*) as numero
+  from impiegato i
+  group by dipartimento;
+#+end_src
+
+ora facciamo la media del campo ~numero~ (il campo ~dipartimento~ non
+andava estratto, ma vabbe')
+
+#+begin_src sql
+  select avg(counter.numero)
+  from (select i.dipartimento, count(*) as numero
+  from impiegato i
+  group by dipartimento) as counter;
+#+end_src
+
+(la query senza ~i.dipartimento~ per ridere era
+#+begin_src sql
+  select avg(counter.numero)
+  from (select count(*) as numero
+  from impiegato
+  group by dipartimento) as counter;
+#+end_src
+
+* Dodicesima query
+Estrarre numero minimo, medio, e massimo di impiegati che partecipano
+a un progetto.
+
+si fa nello stesso stile della undicesima query, ma questa volta
+dobbiamo usare il collegamento tra l'impiegato e il progetto, vale a
+dire la tabella ~pp~
+
+** Trova conto dipendenti per progetto
+#+begin_src sql
+  select pp.progetto, count(*) as numero
+  from pp
+  group by pp.progetto;
+#+end_src
+
+** Applico metriche
+#+begin_src sql
+  select
+  min(counter.numero) as minimo,
+  avg(counter.numero) as media,
+  max(counter.numero) as massimo
+  from (select pp.progetto, count(*) as numero
+  from pp
+  group by pp.progetto) as counter;
+#+end_src

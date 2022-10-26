@@ -1,0 +1,64 @@
+insiemistici (somma differenza et magna cum vehementia) agiscono su tabelle con gli stessi attributi e sono la somma differenza (et magna cum vehementia) delle righe delle tabelle
+
+monadici (rinominazione, proeizione...) agiscono su una sola tabella e hanno come risultato una sola tabella con
+  1. righe rinominate, oppure
+  2. solo un sottinsieme delle colonne (degli attributi della relazione)
+  3. selezione, prende una tabella e un predicato sulle righe e rende la sottotabella con solo quelle righe che soddisfano il predicato, ricordati che ogni predicato apparte ~is null~ rende falso per valori nulli
+
+* Il join
+il join prende come ingresso due tabelle e rende la tabella con tutte le righe che, se proiettate sugli attributi dellla prima tabella danno una riga sulla prima, e se proiettate sugli attributi della seconda tabella danno una riga della seconda
+
+il join è un operatore proprio dell'algebra relazionale
+
+combinando selezione e proiezione possiamo estrarre informazioni da una relazoine, ma gli enti che ci interessano sono descritti su più tabelle, e molte informazioni su questi sono ottenibili solo confrontando e correlando valori presenti su più di una tabella, appunto per questo motivo è necessario il join
+
+quali esami ha superato Maria Rossi, e con quale voto
+
+forse qualcosa tipo
+select e.voto e.corso from esami e, studenti s where s.nome = 'Maria' and s.cognome = 'Rossi' and s.matricola = e.matricola
+(qui magari sarebbe meglio usare una superchiave della tabella studenti invece che nome cognome ma sticazzi)
+
+il join naturale è il join che ho descritto prima
+produce una relazione definita sull'unione degli attributi presenti nelle due tabelle composta da tutte le righe che se proiettate sugli attributi di Ti danno una riga di Ti per i = 1,2
+le righe sono ottenute combinando tuple delle due relazioni, attaccandole dove le colonne comuni hanno lo stesso valore
+
+** Completezza del join
+il join si dice completo se ogni riga di entrambe le tabelle partecipa al risultato
+il join si dice incompleto se non $(definisci join completo)
+il join si definisce vuoto se join | wc -l da 0
+
+se ogni riga della prima relazione si combina con ogni riga della seconda relazione allora stiamo prendendo parecchia memoria
+
+* Proprietà del join
+il join naturale è
+  - Commutativo
+  - Associativo
+
+** Join esterni
+
+quando il join sarebbe non completo ma vorrei tanto tanto tanto non perdere righe della tabella [tabella] allora posso mettere valori nulli dove quella riga di [tabella] non concorda con la riga di [l'altra tabella]
+
+il join esterno estende con valori nulli le righe che non apparirebbero nel join
+il join esterno
+  - sinistro estende le righe della tabella sinistra
+  - destro estende le righe della tabella destra
+  - completo estende le righe di entrambe le tabelle
+
+ricordare che nel caso di un join non completo potrebbero non partecipare tutte le righe di [tabella] e che proiettare sugli attributi di [tabella] potrebbe non rendere tutta la tabella
+
+** Theta join
+se le tabelle che sto joinando non hanno attributi in comune nella testata, non c'è una colonna di T1 che abbia lo stesso nome di una tabella di T2, allora il join per definizione mi viene un prodotto cartesiano tra le due tabelle, questa cosa è abbastanza inutile, ma se ci metto una selezione dopo...
+
+si chiama theta-join, e visto che ha un nome tutto suo a parte o è un antipattern o è qualcosa di abbastanza utile da avere un nome a parte, in questo caso è qualcosa di abbastanza utile da avere un nome a parte
+
+quando la condizione della selezinoe che faccio dopo il join è una condizione di equivalenza allora si chiama equi-join
+
+il join naturale può essere ottenuto dall'equi-join se fai
+join on (colonne comuni hanno lo stesso valore), rinominando a dovere le colonne in comune in questine
+quindi
+
+proj sull'unione di attributi(
+equijoin delle due tabelle (dove rinomini le colonne per non essere in comune)
+)
+
+

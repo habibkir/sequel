@@ -1,0 +1,30 @@
+  - Matricola, nome, età e stipendio degli impiegati che guadagnano più di 40
+    proj (matricola, nome età e stipendio)(sel (stipendio>40) impiegati)
+  - Matricola, nome, ed età degli impiegati che guadagnano più di 40
+    proj (matricola, nome ed età)(sel (stipendio>40) impiegati)
+  - Matricola dei capi degli impiegati che guadagnano più di 40
+    proj(capo)(sel (stipendio > 40) (join impiegati capo))
+  - Nome e stipendio dei capi degli impiegati che guadagno più di 40
+    proj(nome e stipendio)(sel (stipendio>40) impiegati)
+  - Impiegati che guadagnano più del propio capo, anche matricola, nome, e stipendio del capo
+    
+    prima bisogna abusare un po' di join per fare una tabella che abbia la matricola di un impiegato, il suo stipendio, e lo stipendio del suo capo nella stessa riga
+    possiamo mettere la matricola di un capo nella riga impiegato facendo
+
+    #+begin_src sql
+    join impiegato i, supervisione s on i.matricola = s.impiegato
+    #+end_src
+
+    poi dobbiamo rijoinare questa con la tabella impiegati, prima ripuliamo un po' facendo
+    #+begin_src sql
+    select i.matricola as imp_mat, s.matricola as sup_mat, i.stipendio as imp_stip
+    from (join impiegato i, supervisione s on i.matricola = s.impiegato)
+    #+end_src
+
+    questa merdata la rijoiniamo com la tabella impiegati in modo da avere lo stipendio del capo nella stessa riga dello stipendio dell'impiegato, facendo finta di aver chiamato la tabella del blocco prima ~imp_grosso~, questa tabella sarà
+
+    #+begin_src sql
+    join imp_grosso, impiegati on imp_grosso.sup_mat = impiegato.matricola
+    #+end_src
+
+
