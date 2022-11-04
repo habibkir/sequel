@@ -1,0 +1,693 @@
+% Created 2022-11-04 Fri 13:21
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\author{Scritte da Qualcuno}
+\date{L'altro giorno}
+\title{Cose}
+\hypersetup{
+ pdfauthor={Scritte da Qualcuno},
+ pdftitle={Cose},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 28.1 (Org mode 9.5.5)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+
+\section{Viste Aggiornabili}
+\label{sec:org43cf4d2}
+cose scritte col create view per creare una vista che modifica lo schema esterno della
+base dati, dal punto di vista delle query questa vista è a tutti gli effetti una tabella
+della base, risulta in qualche modo la domanda, posso usare questa vista per modificare
+l'istanza della base dati.
+
+posso fare set, oltre a get, di elementi della tabella?
+dal punto di vista formale, una vista è una funzione che estrae roba da una tabella
+
+\(vista = F(tabella)\)
+
+se posso determinare in maniera univoca qual'è l'aggiornamento della base dati che implica
+quell'aggiornamento della vista, allora posso aggiornare la tabella, allora la vista può
+essere aggiornabile, perchè invertibile, perchè posso arrivare univocamente alla riga che
+mi ha dato quella cosa nella tabella
+
+condizioni, vincoli, che valendo questi vincoli la vista è aggiornabile, non si pretende
+di individuare tutti i casi in cui è invertibile, ma si definiscono delle condizioni
+sufficienti per dire "ok la vista è \emph{x}, quindi la vista è aggiornabile"
+
+questi sono i limiti posti da dbms per considerare una vista come aggiornabile, quando le
+considerano aggiornabili
+\begin{itemize}
+\item assenza di group by
+\item assenza di funzioni aggregate
+\item assenza di distinct
+\item assenza di join, impliciti o espliciti
+\end{itemize}
+
+quello a cui questi join si riferiscono è della parte esterna della vista, quindi
+\begin{itemize}
+\item solo una tabella
+\item niente distinct
+\item niente aggregati
+\item niente raggruppamento
+\end{itemize}
+
+\subsection{Esempio}
+\label{sec:org1e7e039}
+supponiamo di avere una base dati con tabelle   
+\begin{itemize}
+\item imp : codice, nome, sede, ruolo, stipendio
+\item sedi : sede, responsabile, città
+\end{itemize}
+
+la città dove vanno a lavorare gli impiegati dipende da dove è localizzata la sede
+c'è un vincolo di chiave
+
+definiamo una vista per tutti gli impiegati che lavorano a bologna
+\begin{verbatim}
+create view impBo(...)
+select I.*
+from impiegato I, join sedi S on (I.sede = S.sede)
+where S.città = 'Bologna'
+\end{verbatim}
+
+questa vista non è aggiornabile, nella clausola \texttt{from} hai due tabelle, quindi c'è un join
+implicito, questa vista non è aggiornabile per sti criteri.
+
+ma formuliamola con una query annidata,
+\begin{verbatim}
+where impiegato.sede in (select le sedi a bologna)
+\end{verbatim}
+oppure
+\begin{verbatim}
+create view ImpBo(...)
+select I.*
+from impiegato I where I.sede in (select S.sede from Sedi where S.città = 'Bologna')
+\end{verbatim}
+in questo caso possiamo vedere che la query annidante rispetta tutti i vincoli di
+aggiornaiblità, quindi sta query che da le stesse informazioni ora è aggiornabile
+
+nel caso tu debba usare più tabelle, se la vuoi aggiornabile, devi vedere se puoi farla
+con select annidate
+
+\subsection{Aggiornare query}
+\label{sec:org6b947d0}
+\begin{verbatim}
+insert into ImpBo(...) values(<dati di impiegato>)
+\end{verbatim}
+
+ok, ma questa è una vista virtuale, non esiste come tabella, quindi la tupla specificata
+dove mi va a finire? la vista non ha un istanza materializzata, la vista è un getter che
+si pensa figo, per avere che quel getter dia quella tupla in più la tupla deve andare a
+finire nella tabella \texttt{imp}, e abbiamo potuto determinare dove doveva andare la tupla
+apputno perchè la vista era definita da una query reversibile.
+
+se io dopo questo inserimento in \texttt{imp} facessi \texttt{select * from ImpBo}, allora vedrei che
+l'impiegato è stato aggiunto.
+
+facciamo un'altra query del tipo
+\begin{verbatim}
+insert into ImpBo(...) values(<dati di impiegato>)
+\end{verbatim}
+
+ma mettiamo che stavolta il codice della sede dato sia un codice di sede che già esiste,
+ma non si trova a bologna, aggiungo agli impiegati di bologna un impiegato che lavora
+nella sede di milano.
+Questa cosa possiamo vedere che non funziona benissimo
+l'inserimento non rispetta la query che definisce la vista
+
+il controsenso viene dal fatto che la tupla non rispetta la select di definizione della
+vista, quando recupero i contenuti della vista quei dati non ci sono, non rispettano il
+comportamento della vista.
+
+quindi nella definizione di una vista aggiornabile si può mettere un check per inserimento
+e aggiornamento, \texttt{with check option}, devo vedere se quell'aggiornamento è compatibile con
+la definizione della vista, così quando cerco di inserire o modificare una vista.
+
+Se il dato inserito nella vista sarà visibile attraverso la definizione (\texttt{select}) della
+vista allora va bene, se il dato inserito non sarà visibile attraverso la definizione
+(\texttt{select}) della vista allora errore, qui il tizio di milano non sarà visibile dalla
+tabella di "vedi quelli di bologna", quindi errore.
+
+visto che una vista puoi definirla in vista di altre viste, puoi avere due tipi di \texttt{with
+check option} 
+\begin{itemize}
+\item \texttt{with local check option}, in vista di questa vista
+\item \texttt{with cascaded check option}, in vista di questa vista e delle altre viste da cui è
+definita.
+\end{itemize}
+
+ci sono qundi dei criteri in base ai quali la vista è aggiornabile.
+
+Passo primo da ricordare, l'eventuale riga che viene aggiunta viene in realtà memorizzata
+nella tabella di base sulla quale la vista è definita, non nella vista, che è una vista
+virtuale.
+Nel caso delle viste aggiornabili è poi importante vedere se l'inserimento è compatibile o
+meno con la select di definzione della vista, se voglio che ci sia consistenza, e che
+quindi i dati inseriti nella vista siano visibili dalla vista, devo definire la vista con
+\texttt{with check option}, che obbliga il dbms a controllare che l'aggiornamento funzoini.
+
+se non metto la with check option allora o
+\begin{itemize}
+\item la vista è read only
+\item la vista farà un po' i cazzi suoi
+\end{itemize}
+
+\section{Ora fa prove compitini}
+\label{sec:org0226520}
+puoi partecipare al compitino anche se non hai superato algoritmi, ma il compitino vale
+solo fino a gennaio febbraio, quindi se non passi algoritmi per sta sessione il compitino
+bellissimo, non ci fai niente.
+
+se non hai dato algoritmi non puoi partecipare al preappello di dicembre, ad esempio
+
+\subsection{Prova compitino VII}
+\label{sec:org15df7e6}
+\subsubsection{Schema}
+\label{sec:org3cdd896}
+\begin{itemize}
+\item Policeman : \uline{code}, name, surname, address, areaCode
+\item Fine : \uline{code}, policeman, car, date, infraction, streetName, areaCode, cost
+\item Infraction : \uline{code}, description
+\item Car : \uline{plateNumber}, type, owner
+\item Owner : \uline{code}, name, surname, address, areaCode
+\item AreaCode : \uline{code}, cityName, provinceName
+\end{itemize}
+
+(nelle query usa CAP e areaCode come sinonimi)
+\subsubsection{Prima query}
+\label{sec:orgcb41b94}
+per ogni cap, il codice ed il numero di multe medie fatte al giorno
+(ammissione dal Pala, la definizione \textpm{} torna \textpm{} non torna tantissimo)
+
+da calcolare un numero, e la media di quel numero, mi sono un po' perso, so che va fatta
+\begin{enumerate}
+\item Pala dixit
+\label{sec:orgedacd9e}
+
+crea una vista in cui per ogni cap, e per ogni giorno, si contano le multe fatte
+\begin{verbatim}
+create view multeAreaData(areaCode, date, numero) as
+select areaCode, date, count(code)
+from fine
+group by areaCode, date
+
+select areaCode, avg(numero)
+from multeAreaData
+group by areaCode
+\end{verbatim}
+
+qui visto che code è chiave primaria non cambia fare
+\begin{itemize}
+\item \texttt{count}
+\item \texttt{count *}
+\item \texttt{count distinct}
+\end{itemize}
+
+se vuoi calcolare anche le aree per cui non è mai stato fatta una multa fai left join di
+qualcosa, poi count viene 0 nella vista, e avg verrà 0 nella select.
+Mi sono perso i dettagli, non stavo seguendo molto, pardon.
+\end{enumerate}
+
+\subsubsection{Seconda query}
+\label{sec:org64a0180}
+Il cap dove sono state fatte il maggior numero di multe, insieme a quel numero di multe
+
+qui farei una query per legare cap e multe
+\begin{verbatim}
+create view capMulte(cap, multe) as
+select areaCode, count(code)
+from fine
+where areaCode is not null -- se vuoi evitare problemi quando non specificano areaCode 
+group by areaCode
+
+select cap from capMulte where multe = (select max multe from capMulte)
+\end{verbatim}
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org87369cf}
+una possibile soluzoine è calcolare il numero di multe fatte per cap, e poi vedere il cap
+per cui è massimale
+\begin{verbatim}
+create view multeArea(areaCode, numero) as
+select areaCode, count(code)
+-- count(code) permetterà di dare 0 per gli areaCode che non hanno mai avuto multe
+from fine
+group by areaCode
+
+select areCode, numero
+from multeArea
+where numero = (select max(numero) from multeArea)
+\end{verbatim}
+
+altrimenti
+
+\begin{verbatim}
+having count(multe) >= all(select count(multe)
+\end{verbatim}
+
+\begin{verbatim}
+...
+(select max(pippo) -- rinominato in un momento di euforia (a detta del Pala in persona)
+from (select count(code) as pippo
+from fine
+group by areaCode))
+\end{verbatim}
+\end{enumerate}
+
+\subsubsection{Terza query}
+\label{sec:org902778a}
+per ogni tipo di infrazione, il codice ed il numero medio di multe fatte in un giorno,
+\texttt{fine.infraction} indica il tipo di multa.
+
+(come prima, il numero medio di multe fatte in un giorno, assumendo che sia stata fatta
+una multa per ogni tipo di infrazione)
+
+come al solito si divide in vista che definisce il coso di cui fare la media
+\begin{verbatim}
+create view contatore(inf, dat, numero) as
+select infraction, date count(fine.code)
+from infraction
+group by code, date
+\end{verbatim}
+e fare la media dalla vista poi si fa la media
+\begin{verbatim}
+select inf, avg(numero)
+from contatore
+group by inf
+\end{verbatim}
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org5519fc1}
+
+vanno contatae usando una vista, il numero per ogni giorno e per ogni infrazione, poi si
+fa la media al variare di cosa
+si raggruppa per infraction, al variare di date, quindi nella seconda query togli il group
+by date
+
+\begin{verbatim}
+create view multeTipoData(infraction, data, numero) as
+select infraction, date, count(code)
+from fine
+group by infraction, date
+
+select infraction, avg(numero)
+from multeTipData
+group by infraction
+\end{verbatim}
+\end{enumerate}
+
+\subsubsection{Quarta query}
+\label{sec:org0b0ad21}
+codice e descrizione del tipo di infrazione per cui sono state emesse il maggior numero di
+multe, inseme a tale numero
+
+creiamo una vista del codice massimo e numero
+\begin{verbatim}
+create view infMaxNum(inf, num) as
+select infraction, count(code)
+from fine
+where count(code) >= all(select count(code) from fine group by infraction)
+group by infraction
+\end{verbatim}
+
+poi abbiamo il codice e bisogna fare il join con la tabella infraction per avere anche la
+descrizione, quindi la select vera e propia.
+\begin{verbatim}
+select inf,descrizione,num
+from infMaxNum, infraction
+where infMaxNum.inf = infraction.code
+\end{verbatim}
+
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org4f2ce6f}
+\begin{verbatim}
+-- non so perchè ma gli andava di usare la tabella definita prima
+-- la cosa non è necessaria, te fai come vuoi
+
+-- questa basta definirla come "per ogni infrazione il numero di multe fatte"
+create view multeTipo(infraction, numero) as
+select infraction, sum(numero)
+from multeTipoData
+group by infraction
+
+
+select infraction, numero
+from multeTipo
+where numero = (select max(numero) from multeTipo)
+-- oppure
+where numero >= all(select numero from multeTipo)
+-- molti gradi di libertà
+\end{verbatim}
+
+
+\begin{verbatim}
+create view multeTipo (infraction, description, numero) as
+select i.code, i.description, count(f.code)
+from  infraction left join fine f on i.code = f.infraction
+group by i.code, i.description
+\end{verbatim}
+ai fini di questa select il join normale andava bene
+se dovevo contare quando certi tipi di multe non hanno multe fatte, allora avrei fatto un
+join esterno per considerare anche quei tipi
+
+di solito posso usare indifferentemente i cosi della condizione, quelle righe avranno i
+campi di infraction a valori non nulli mentre i corrispondenti campi di fine saranno
+nulli, quindi qeulla condizione non sarà verificata per le righe obbligate e non ho capito
+che diceva
+
+poi la query principale sarà
+\begin{verbatim}
+select infraction, description, numero
+from multeTipo
+where numero = (select max(numero) from multeTipo)
+\end{verbatim}
+\end{enumerate}
+
+\subsubsection{Quinta query}
+\label{sec:org75c28f4}
+codice, nome, e cognome di ogni vigile, e costo totale delle multe fatte, ordinando i
+valori descrescenti del costo
+
+io avrei fatto questa
+\begin{verbatim}
+select p.code, p.name, p.surname, sum(f.cost) costo
+from policeman p, fine f
+where f.policeman = p.code
+group by p.code, p.name, p.surname
+order by sum(f.cost) desc
+\end{verbatim}
+
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org0eccd79}
+serve la tabella policeman per i dati, e fine per il costo
+
+\begin{verbatim}
+select p.code, p.name, p.surname, sum(f.cost) totale
+from policeman p, fine f
+group by p.code, p.name, p.surname
+group by p.code, p.name, p.surname
+order by totale desc -- desc necessario perchè di default il criterio è asc, ascendente
+\end{verbatim}
+
+errata da parte di Sergio Cibecchini del join esterno
+\begin{verbatim}
+... -- stesso di sopra
+from policeman p left join fine f on f.policeman = p.code
+... --stesso di spora
+
+\end{verbatim}
+\end{enumerate}
+
+\subsection{Prova compitino IX}
+\label{sec:org065b36d}
+era un compito a due file, quindi le query sono identiche a due a due
+\subsubsection{Schema}
+\label{sec:org084f9a2}
+(la descrizione oltre alle tabelle, di che significa ogni tabella, è un saggio, vatti a
+vedere te le slide, tanto questo è il pdf delle prove compiti che ha messo su moodle)
+\begin{itemize}
+\item \textbf{Paziente} : \uline{cf}, nome, cognome, indirizzo, città, telefono
+\item \textbf{Medico} : \uline{cf}, nome, cognome, indirizzo, città, telefono
+\item \textbf{PrenotazoineVisita} : \uline{data}, \uline{ora},  paziente, medico
+\item \textbf{Visita} : \uline{codice}, data, paziente, medico, costo
+\item \textbf{DettaglioVisita} : \uline{visita}, \uline{controllo},  inNorma, descrizione
+\item \textbf{Prescrizione} : \uline{visita}, \uline{farmaco},  posologia
+\item \textbf{Controllo} : \uline{codice}, nome
+\item \textbf{Farmaco} : \uline{codice}, nome
+\end{itemize}
+
+\subsubsection{Prima query}
+\label{sec:org554c2c4}
+il numero delle visite al termine delle quali non è stato prescritto il farmaco F018
+
+facciamo una vista di tutte le visite in cui\ldots{}
+
+\begin{verbatim}
+create view visiteInCuiNon(visita)
+select visita.codice
+except
+(select prescrizione.visita
+where farmaco = F018)
+
+select count(visita)
+from visitaInCuiNon
+\end{verbatim}
+
+se vuoi fare lo scemo fai
+
+\begin{verbatim}
+select (select count (*) from visita) -
+(select count(*) from prescrizione where farmaco = F018)
+as questaCosaFunziona -- ci ho provato nel database impiegati e a postgres va bene
+\end{verbatim}
+
+poi la solita epopea del tipo di count non l'ho considerata, ma visto che \uline{visita},
+\uline{codice} è una superchiave non serve il \texttt{count distinct}, per ogni visita ogni codice
+compare al più una volta.
+
+Questa minchiata è stata approvata dal Pala.
+
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org670a259}
+qui non è decisivo che sia prescritta qualcosa che non sia F018, visto che posso
+prescrivere qualcosa \texttt{<> F018} insieme a qualcosa che è \texttt{= F018}
+\begin{verbatim}
+select count(codice)
+from visita
+where codice not in(
+select visita
+from prescrizione
+where farmaco = 'F018')
+\end{verbatim}
+\end{enumerate}
+
+\subsubsection{Seconda query}
+\label{sec:orge80ba2b}
+Il numero di visite in cui non è stato fatto il controllo C014
+
+è identica alla query di sopra
+
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org0bb5c09}
+stessa cosa
+\end{enumerate}
+
+\subsubsection{Terza query}
+\label{sec:org8250404}
+il medico che ha visitato il maggior numero di diversi pazienti
+
+a sto punto questo schema lo facciamo un design pattern quante volte lo rifila.
+\begin{verbatim}
+create view medicoPazienti(medico, numero) as
+select medico, count(distinct paziente)
+from visita
+group by medico
+
+select medico
+from medicoPazienti
+where numero = (select max(numero) form medicoPazienti)
+\end{verbatim}
+
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org554db4f}
+si fa una vista in cui si contano per i medici il numero di pazienti (diversi) visitati e
+si fa il max di questa vista
+
+\begin{verbatim}
+create view numPazienti as
+select medico, count(distinct paziente) num
+from visita
+group by medico
+
+select medico
+from numPazienti
+where num = (select max(num) form numPazienti)
+\end{verbatim}
+
+se vuoi contare tutti i medici, magari anche quelli che non hanno fatto nessuna visita,
+allora fai un join esterno.
+
+nell'economia della query in questione non ha molto senso vedere anche i medici che non
+hanno mai fatto nessuna visita, quindi il join esterno possiamo evitarlo.
+\end{enumerate}
+
+\subsubsection{Quarta query}
+\label{sec:orgaf01ec0}
+il paziente che è stato visitato dal maggior numero diverso di medici
+
+stessa cosa di sopra ma invertito
+\begin{verbatim}
+create view numPazienti as
+select paziente, count(distinct medico) num -- abbiamo cambiato sta riga
+from visita
+group by paziente -- sta riga
+
+select paziente -- e sta riga, solo quelle
+from numPazienti
+where num = (select max(num) form numPazienti)
+\end{verbatim}
+
+\subsubsection{Quinta query}
+\label{sec:org088b27d}
+numero medio di farmaci prescritti al termine delle visite
+
+va fatto un join esterno per contare le visite in cui non prescrivi niente
+
+come al solito creiamo una vista e poi \texttt{select avg(numero)}, siamo al secondo design
+patter del Pala.
+\begin{verbatim}
+create view numFarmaci(visita, numero) as
+select v.codice, count(farmaco)
+from visita v left join prescrizione f on v.codice = f.visita
+group by v.codice
+
+select avg(numero) as HaiCapitoVaBeneComeAlSolito
+from numFarmaci
+\end{verbatim}
+
+Il Pala ha fatto la stessa cosa
+
+\subsubsection{Sesta query}
+\label{sec:org47a1901}
+Uguale alla quinta. Il numero medio di controlli fatti in una visita
+
+\subsection{Prova compitino X}
+\label{sec:org768b289}
+\begin{itemize}
+\item Wine : \uline{code}, name, color, year
+\item Color : \uline{code}, name
+\item Grape\textsubscript{variety} : \uline{code}, name
+\item Wine\textsubscript{grape}\textsubscript{variety} : \uline{wine}, \uline{grape\textsubscript{variety}}
+\item Food : \uline{code}, name, recipe, food, category
+\item Food\textsubscript{category} : \uline{code}, name
+\item Wine\textsubscript{food}\textsubscript{pairing} : \uline{code}, wine, food, rating
+\item Rating : \uline{code}, description
+\end{itemize}
+
+io posso avere un rating a una stessa coppia più volte, posso dire più volte che le
+lasagne con l'Ambrusco ci stanno da 10.
+
+\subsubsection{Prima}
+\label{sec:orgf96fe0e}
+Codici dei fini e delle pietanze che abbinati hanno avuto il massimo numero di valutazioni
+'Perfect'
+
+\begin{verbatim}
+create view perfects(wine, food, numero)
+select wine, food, count(rating)
+from wine_food_pairing
+where rating = 'Perfect'
+-- qui ho fatto una piccolissima minchiata
+-- il codice non dice un cazzo su che rating ha l'abbinamento
+-- quello devi vederlo dalla tabella rating
+
+select wine, food, numero
+from perfects
+where numero = (select max(numero) from perfects)
+\end{verbatim}
+
+\begin{enumerate}
+\item Pala dixit
+\label{sec:orgd3b0148}
+\begin{verbatim}
+create view pairings as
+select wine, food, count(r.code) number -- funziona anche count(*), non count distinct (?)
+from wine_food_pairing wfp, rating r
+where rating = r.code and description = 'Perfect'
+group by wine,food
+
+select wine,food
+from pairings
+where number = (select max(number) from pairing)
+\end{verbatim}
+\end{enumerate}
+
+
+
+\subsubsection{Seconda}
+\label{sec:org76bf91e}
+il numero di vini prodotti usando un solo vitigno (\texttt{grape\_variety})
+
+\begin{verbatim}
+select wine from wine_grape_variety having count(grape_variety) = 1
+\end{verbatim}
+
+si poteva usando con \texttt{grape\_variety} due volte
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org22b7e09}
+hey indovina un po' mi sono scordato il group by
+
+\begin{verbatim}
+select wine from wine_grape_variety having count(grape_variety) = 1 group by wine
+\end{verbatim}
+
+altrimenti
+
+\begin{verbatim}
+create view vitigni_per_vino as 
+select wine, count(*) as numero
+from wine_grape_variety
+group by wine
+
+select count(wine)
+from vitigni_per_vino
+where numero = 1
+\end{verbatim}
+
+per fare la conta devi fare una vista, o un (se sei scemo)
+\begin{verbatim}
+select count(*)
+from (select wine from wine_grape_variety having count(grape_variety) = 1 group by wine) qualcosa
+\end{verbatim}
+\end{enumerate}
+
+\subsubsection{Terza}
+\label{sec:orgd7f0c7e}
+per ogni vino, il codice, il nome, ed il numero di valutazioni di abbinamenti che
+coinvolgono quel vino, mostrando 0 per i vini che non compaiono negli abbinamenti
+
+\begin{verbatim}
+select w.code, w.name, count(wfp.rating)
+from wine w left join wine_food_pairing wfp on (wfp.wine = w.codice)
+group by w.code, w.name
+\end{verbatim}
+
+\begin{enumerate}
+\item Pala dixit
+\label{sec:org07b3461}
+viene esplicitato per gli 0
+
+va usato wine perchè chiede codice e nome, e visto che chiede tutti i vini va obbligata
+ogni riga della tabella wine con un join esterno
+
+e contiamo \texttt{wine\_food\_pairing.code} per contare gli 0 , non può essere sostituito con
+\texttt{count(*)} visto che va considerato il count 0 per i vini non cosati
+
+\begin{verbatim}
+select w.code, w.name, count(wfp.code)
+from wine w left join wine_food_pairing wfp on wine = w.code
+group by w.code, w.name
+\end{verbatim}
+\end{enumerate}
+\end{document}
