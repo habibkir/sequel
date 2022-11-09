@@ -1,0 +1,305 @@
+* vino
+** Note
+nella prima basta fare un abbinamento per ...
+e andare a fare count *distinct* di vino = 1
+ricorda, quando hai un conteggio
+ - count
+ - count *
+ - count distinct
+
+** Prima
+il codice delle pietanze abbinate a un solo vino
+in questo caso è stata abbinata dieci volte allo stesso vino, quel vino è sempre lo
+stesso, non bisogna fare i distintoni con questi vini, in questo caso è questo caso per
+questo caso, del caso.
+
+#+begin_src sql
+  select food
+  from wine_food_pairing
+  group by food
+  having count(distinct wine) = 1
+
+#+end_src
+
+** Seconda
+codice del fino che più spesso compare nell evautazoini degli abbinamenti
+
+#+begin_src sql
+  create view volte_che_compare(vino, numero) as
+  select w.code, count(wfp.code)
+  from wine w left join wine_food_pairing wfp on w.code = wfp.wine
+  group by w.code;
+#+end_src
+
+trovi il massimo con
+
+#+begin_src sql
+  select vino
+  from volte_che_compare
+  where numero = (select max(numero) from volte_che_compare)
+#+end_src
+
+*** Pala dixit
+conto codice, siccome codice è una chiave primaria
+ - =count(code)=
+ - =count(distinct code)=
+ - =count(*)=
+non cambia   
+
+#+begin_src sql
+  create view winePairings as
+  select wine, count(*) number
+  from wine_food_pairing
+  group by wine
+#+end_src
+
+#+begin_src sql
+  select wine
+  from winePairings
+  where number = (select max(number) from winePairings);
+#+end_src
+
+mi raccomando, è la select che ritorna lo scalare, devi confrontare il valore con il
+valore scalare ritornato dalla select, quindi non fare
+#+begin_src sql
+  where numero = max(numero)
+#+end_src
+perchè max ha senso solo come "subroutine" di una select, i valori vengono dalla select,
+tutto viene dalla select, tutto arriva alla select, select.
+
+ricorda che nella target list puoi fare operazoini aritmetiche anche di query annidata
+
+** Terza
+
+per ogni possibile giudizio, il codice e la descrizione ed il numero di valutazoini di
+abbinamenti con quel giudizio, mostrando 0 per i giudizi mai assegnati
+
+ - rating legato con vincolo di integrità referenziale, rating indica tutti i possibili
+   tipi di descrizione
+
+#+begin_src sql
+  select r.code, r.description, count(wfp.code)
+  from ratint r left join wine_food_pairing wfp on wfp.rating = r.code
+  group by r.code, r.description;
+#+end_src
+
+*** Pala dixit
+si chiede esplicitamente che compaiano tutti i possibili giudizi, il che vuol dire join
+esterno, che può essere sinistro o destro a seconda dell'ordine degli addendi, il
+risultato /cambia/.
+
+il numero di ... con quel giudizio, il raggruppamento va fatto per rating.code,
+rating.giudizio, qual'è la variabile da contare? wine_food_pairing.code, perchè altrimenti
+che ho fatto l'esetrno a fare
+
+distinct o non distinct non serve a niente, qui =code= è univoco, quando non è nullo, ma
+può essere nullo per i rating che non sono mai usati, quindi non si fa count(*)
+
+mi raccomando in questi casi qua, lo ha già detto 10^4 volte ma nei join esterni che qui
+ha =rating = r.code=, attenzione che se faccio il group by rating
+
+#+begin_quote
+se uno per una query del genere mi fa 3 viste,
+un punto glielo tolgo anche per soddisfaizione personale
+ -- Nietzsche, così parlò Zarathustra
+#+end_quote
+
+* ISBN
+estrarre il numero di autocitazioni
+un autorie che cita in un articolo un altro articolo di se stesso
+
+ - Editor, codice, nome, indirizzo, paese
+ - Journal, isbn, titolo, editor
+ - JournalIssue (un uscita al mese) , journal, volume, numero, anno
+ - JournalPaper, chiave journal, volume, numero, id, titolo
+ - Autore, nome, cognomme, affiliazione, paese
+ - ArticoloAutore, journal, volume, numero, id, autore
+ - Citazione, journal, volume, numero, id (citatore),
+   journalCitato, numeroCitato, idCitato (citato)
+
+può darsi che nei primi quattro codici e nei secondi quattro codici trovi lo stesso autore
+
+** Prima
+Estrarre il numero di autocitazioni dell'autore PLAPTR001
+
+ - serve la tabella citazioni
+   - serve trovare l'autore del citato, usando tabella articoloAutore
+
+un abominio naive è
+#+begin_src sql
+      select count(*)
+    from citazione c, articoloAutore a1, articoloAutore a2
+    where
+  a1.journal = c.journal
+  a1.volume = c.volume
+  a1.numero = c.numero
+  a1.id = c.id
+  and
+  a2.journal = c.journalCitato 
+  a2.nuemro = c.nuemroCitato 
+  a2.id = c.idCitato 
+
+*** Pala dixit
+tabella citazione combinata a una prima istanza di paperAuthor
+
+a destra lo estendo, utilizzando una seconda istanza di paperAuthor, con l'autore del
+papaer citato
+
+(quando parla del codice del paper parla di 4 codici)
+in modo da avere su una stessa riga una priam e una seconda istanza di paperautor, il
+codice del paper di cui è autore, il codice del paper citato, e l'autore del paper citato,
+se impongo che gli autori siano uguali e uguali all'autore in questione.
+poi mi resteranno le righe di lui che cita se stesso
+
+#+begin_src sql
+  select count(*) from
+  PaperAuthro pa1,
+  Citation c1,
+  PaperAuthro pa2
+  where
+  -- i primi quattro cosi di citazione indicano il primo articolo
+  -- della relazione primo -> cita -> secondo
+  and
+  -- gli altri quattro cosi di citazoine indicano il secondo articolo
+  -- della relazione primo -> cita -> secondo
+  and pa1.author = pa2.author
+  and pa1.author = 'PLAPTR001';
+#+end_src
+
+espansa con la chiarezza di una macro del c++ abbiamo
+#+begin_src sql
+  select count(*) from
+  PaperAuthro pa1,
+  Citation c1,
+  PaperAuthro pa2
+  where
+  pa1.journal = c1.journal and
+  pa1.volume = c1.volume and
+  pa1. number = c1.number and
+  pa1.id = c1.id
+  and
+  pa2.journal = c1.citedJ and
+  pa2.volume = c1.citedV and
+  pa2. number = c1.citedN and
+  pa2.id = c1.citedID
+  and
+  pa1.author = pa2.author and pa1.author = 'PLAPTR001';
+#+end_src
+
+con l'espansione cubica di prodotti cartesiani qui comunque mi sa abbiamo fatto un
+DDOS. Bello il triplo join, implicito tra l'altro.
+
+il natural join funzionava per il primo join ma non per il secondo join
+il natural join permette di non specificare la condizione di join che è implicitamente
+data dall'equivalenza degli attributi con lo stesso nome
+
+** Seconda
+Estrarre il numero medio di autori di dei papers pubblicati negli issues del 2016 del
+jounrnal con ISBN '001-001-001'
+
+possiamo fare una vista con
+\[
+paper\ del\ 2016 \to #(autori)
+\]
+
+questa la famo con
+
+*** Pala dixit
+ - va utilizzato journalIssue perchè l'anno compare lì
+ - va usato paperAuthor perchè l'autore compare lì
+
+tutti i dati di journalPaper sono messi implicitamente in stocazzo
+
+#+begin_src sql
+  create view author_per_paper(journal, volume, number, id, numAuth) as
+  select journal, volume, number, id, count(author)
+  from paperAuthor
+  group by
+  journal, volume, number, id
+#+end_src
+
+poi boh
+
+** Terza
+Estrarre id e issue del paper citato il minor numero di volte
+#+begin_src sql
+  create view cite_per_paper(journal, volume, number, id, cit_numero) as
+  select citedJ, citedV, citedN, citedID, count(journal)
+  from citation
+  group by citedJ, citedV, citedN, citedID
+#+end_src
+
+#+begin_src sql
+  select journal, volume, number, id, cit_numero
+  from cite_per_paper
+  where cit_numero = (select min(cit_numero) from cite_per_paper);
+#+end_src
+
+cosa cazzo è appena diventato questo corso, stavamo così allegri a fare i select where
+numero = min... e adesso boh.
+
+** Ultima select
+estrarre il numero di citazoini ai paper dell'autore col solito id
+
+pseudocodice
+#+begin_src sql
+  select count(*)
+  from citazoini, paperAuthor
+  where citazioni.citato = paperAuthor.paper
+  and paperAuthor.paper = 'quello'
+#+end_src
+
+codice
+#+begin_src sql
+  select count(*)
+  from citazoini, paperAuthor
+  where
+  citazioni.citedJ = paperAuthor.journal
+  citazioni.citedV = paperAuthor.volume
+  citazioni.citedN = paperAuthor.number
+  citazioni.citedID = paperAuthor.id
+  and paperAuthor.paper = 'PLAPTR001' -- Pala Pietro number 1
+#+end_src
+
+*** Pala dixit
+sono stupido, gli =and=
+#+begin_src sql
+  select count(*)
+  from citazoini, paperAuthor
+  where
+  citazioni.citedJ  = paperAuthor.journal and
+  citazioni.citedV  = paperAuthor.volume and
+  citazioni.citedN  = paperAuthor.number and
+  citazioni.citedID = paperAuthor.id and
+  paperAuthor.author = 'PLAPTR001'
+#+end_src
+
+(lui lo ha fatto con gli alias, ma sticazzi non riscrivo la query)
+
+* Per i compitini
+troverete dei fogli sul banco
+sedetevi solo dove trovi fogli
+
+a quel punto lui proietta la descrizoine della base dati
+si legge la descrizione
+lui fa commenti
+
+poi tutto bellino, quando nessuno ha più domande si da il via allo svolgimenti del corso,
+e lì giri il foglio
+
+prima di tutto scrivi nome, cognome, e matricola dello studente sul foglio in modo da
+poterlo individuare univocamente all'interno della tabella compiti.
+
+chi volesse arrivare prima sappia che appena si siede sta lì, la scelta di posaculo è
+vincolante.
+
+l'idea della durata è mezz'ora
+
+se poi si dilunga sull'ora si dilunga sull'ora
+
+poi se la sai fare ci vorrebbero anche 3-5 minuti (minchia)
+
+se volete potete portarvi fogli bianchi, suggerisce di portarli
+
+alla scdenza del compito arrivate tutti alla cattedra e consegnate, post fine hai 2-3
+minuti poi se non consegni so' cazzi tua.
