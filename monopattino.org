@@ -16,6 +16,7 @@
   left join utenteRitorni
 #+end_src
 
+** Oh l'orrore
 #+begin_src sql
   create view categoriaFantascienza(id) as
   select id from categoriaId where descrizione = 'Fantascienza'
@@ -36,6 +37,21 @@
   create view utentiCheHorror(id) as
   select utente from categoria
   where video in (select video from categoriaHorror)
+
+  select utentiCheFantascienza except utentiCheHorror
+#+end_src
+
+*** Illuminato dal deste
+#+begin_src sql
+  create view utentiCheFantascienza(id) as
+  select (distinct utente)
+  from cronologia, videoCategoria, categoria
+  where categoria = videoCategoria and categoria.descrizione = 'Fantascienza'
+
+  create view utentiCheHorror(id) as
+  select (distinct utente)
+  from cronologia, videoCategoria, categoria
+  where categoria = videoCategoria and categoria.descrizione = 'Horror'
 
   select utentiCheFantascienza except utentiCheHorror
 #+end_src
