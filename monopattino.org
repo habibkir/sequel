@@ -1,0 +1,17 @@
+** Primo
+#+begin_src sql
+  create view nolIndirizzi(utente, casa, ritorno) as
+  select utente, indirizzo, indirizzoTermine
+  from utente join noleggio on cf = utente
+
+  create view utenteRitorni(utente, numero) as
+  select utente, count(*)
+  from nolIndirizzi
+  where casa = ritorno
+
+  select cf, count(*), numero
+  from
+  (utente left join noleggi on cf = utente)
+  join
+  left join utenteRitorni
+#+end_src
