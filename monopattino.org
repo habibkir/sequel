@@ -15,3 +15,27 @@
   join
   left join utenteRitorni
 #+end_src
+
+#+begin_src sql
+  create view categoriaFantascienza(id) as
+  select id from categoriaId where descrizione = 'Fantascienza'
+
+  create view videoFantascienza(video) as
+  select video from videoCategoria where id in (select id from categoriaFantascienza)
+
+  create view utentiCheFantascienza(id) as
+  select utente from categoria
+  where video in (select video from videoFantascienza)
+
+  create view categoriaHorror(id) as
+  select id from categoriaId where descrizione = 'Horror'
+
+  create view categoriaHorror(video) as
+  select video from videoCategoria where id in (select id from categoriaHorror)
+
+  create view utentiCheHorror(id) as
+  select utente from categoria
+  where video in (select video from categoriaHorror)
+
+  select utentiCheFantascienza except utentiCheHorror
+#+end_src
