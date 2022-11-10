@@ -45,13 +45,23 @@
 #+begin_src sql
   create view utentiCheFantascienza(id) as
   select (distinct utente)
-  from cronologia, videoCategoria, categoria
-  where categoria = videoCategoria and categoria.descrizione = 'Fantascienza'
+  from cronologia
+  where cronologia.video in
+
+  (select videoCategoria.video -- select tutti i video di fantascienza
+  from videoCategoria, categoria
+  where videoCategoria.categoria = categoria.id and
+  categoria.nome = 'Fantascienza')
 
   create view utentiCheHorror(id) as
   select (distinct utente)
-  from cronologia, videoCategoria, categoria
-  where categoria = videoCategoria and categoria.descrizione = 'Horror'
+  from cronologia
+  where cronologia.video in
+
+  (select videoCategoria.video -- select tutti i video horror
+  from videoCategoria, categoria
+  where videoCategoria.categoria = categoria.id and
+  categoria.nome = 'Horror')
 
   select utentiCheFantascienza except utentiCheHorror
 #+end_src
