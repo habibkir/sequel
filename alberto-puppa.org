@@ -1,0 +1,101 @@
+* Quattro
+** Primo
+
+** Secondo
+primo ma con una join
+
+** Terzo
+#+begin_src sql
+  select progetto, avg(stipendio)
+  from (progetto left join partecipazione on codice = progetto)
+  join impiegato on impiegato = matricola
+  group by progetto;
+#+end_src
+
+* Cinque
+** Uno
+#+begin_src sql
+  select sin, description, count(oin)
+  from status left join orderStatus where status = sin
+  group by sin,description
+#+end_src
+
+** Due
+#+begin_src sql
+  select user.*
+  from user,orderStatus
+  where
+  user = uin and
+  status <> 3 and
+  elapsed(dateOfIssue) = (select max(elapsed(dateOfIssue)) from orderStatus)
+#+end_src
+
+oppure
+
+#+begin_src sql
+  select user.*
+  from user,orderStatus
+  where
+  user = uin and
+  status <> 3 and
+  elapsed(dateOfIssue) =
+  (select max(et.time)
+  from (select elapsed(dateOfIssue) time from orderStatus) et)
+#+end_src
+
+*** Pala dixit
+
+sono uno stronzo
+andava messo il where anche nelle date perchè ti serve la data minima *NON ARRIVATA*
+
+#+begin_src sql
+  select user.*
+  from user,orderStatus
+  where
+  user = uin and
+  status <> 3 and
+  elapsed(dateOfIssue) =
+  (select max(et.time) from
+  (select elapsed(dateOfIssue) time from orderStatus where status <> 3) et)
+#+end_src
+
+** Tre
+#+begin_src sql
+  create view pezziOrd(ord, pezzi) as
+  select oin, sum(number)
+  from order
+
+  select avg(numero)
+  from pezziOrd
+#+end_src
+
+* Sei
+** Uno
+#+begin_src sql
+  select (select count(*) from prenotazione where date = '15-12-2006'), codice, descrizoine
+  from spettacolo, programmazione
+  where data = '15-12-2006'
+#+end_src
+
+** Due
+#+begin_src sql
+  create view postocosto(p,c) as
+  select posto, costo
+  from categoriePosti join categoria on categoria = codice
+
+  select utente.*, sum(c) tot
+  from (utente join prenotazoine on cf = utente) join postocosto on posto = p
+  group by utente.cf, utente.nome, utente.cognome, utente.telefono
+  order by tot desc
+#+end_src
+
+** Tre
+#+begin_src sql
+  create view dataCatNum(d,c,num) as --numero posti in quella categoria in quella data
+  select data, categoria, count(posto)
+  from (prenotazoine p join categoria c on p.posto = c.posto)
+  group by data, categoria
+
+  select categoria.codice, avg(num)
+  from categoria left join dataCatNum on codice = c and d >= '01-10-2006'
+#+end_src

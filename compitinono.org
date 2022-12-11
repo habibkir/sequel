@@ -1,0 +1,114 @@
+* Schema
+ - User
+ - Order
+ - OrderStatus
+ - Product
+ - Status
+
+Status è
+
+| Status Indicator (sin) | Description               |
+|------------------------+---------------------------|
+|                      0 | Unavailable some products |
+|                      1 | All available             |
+|                      2 | Sent                      |
+|                      3 | Arrived                   |
+
+** Prima query
+per ciascun possibile stato, la descrizoine ed il numero di ordini in quello stato
+
+#+begin_src sql
+  select s.sin, s.description, count(oin)
+  from status s left join orderstatus os on os.status = s.sin
+  group by s.sin, s.description;
+#+end_src
+
+left join perchè magari nessun ordine è nello stato tot quindi devi contare 0
+oppure qualche strinzo non ha messo lo stato
+
+** Seconda query
+
+isoliamo il massimo tempo di attesa e prediamone l'utente
+#+begin_src sql
+  create view longestTime(oin) as -- fai partire billy joel
+  select oin from orderstatus
+  where elapsedtime(dateOfIssue) >= all(select elapsedTime(dateOfIssue) from orderStatus)
+#+end_src
+
+nota da mirkina, status deve essere =<> 3=, genio
+
+#+begin_src sql
+  create view longestTime(oin) as -- fai partire billy joel
+  select oin from orderstatus
+  where elapsedtime(dateOfIssue) >= all(select elapsedTime(dateOfIssue) from orderStatus)
+  and status<>3
+#+end_src
+
+fai la select, ricordando che non è garantito sta cosa venga scalare buttiamoci un =any=
+
+#+begin_src sql
+  select * from user
+  where uin = any(select oin from longestTime);
+#+end_src
+
+** Terza query
+
+#+begin_src sql
+  create view pezziOrdinati(oin, numero)
+  select oin, sum(number)
+  from orderstatus
+  group by oin
+#+end_src
+
+e poi media
+
+#+begin_src sql
+  select(avg(numero))
+  from pezziOrdinati;
+#+end_src
+
+* La 6 si era fatta oggi
+* La 7
+
+** Prima query
+#+begin_src sql
+  select pm.code, pm.nome, pm.cognome, count(f.code) numero
+  from policeman pm left join fine f on pm.code = f.policeman
+  order by numero desc
+#+end_src
+
+** Seconda query
+per ogni CAP (AreaCode), il codice ed il numero medio di multe fatte in un giorno
+
+non ne ho idea
+
+non abbiamo un cazzo di intervallo temporale su cui fare questa media, non abbiamo un
+inseme di giorni, non so tra quanti giorni devo fare la media, non si capisce un cazzo,
+sembra di essere dislessici a leggere l'ulisse o il necronomicon davanti a ste traccie.
+
+Dio santissimo.
+#+begin_src sql
+  create view multeInGiorno(cap, numero) as
+  select ac.code, count(fine.code)
+  from areaCode ac left join fine on ac.code = fine.areaCode
+  group by date, ac.code
+#+end_src
+
+** Terza query
+il cap dove ho fatto maz multe, insme al numero di multe
+
+#+begin_src sql
+  create view capMulte(cap, multe) as
+  select areaCode, count(*)
+  from fine
+  group by areaCode
+#+end_src
+
+#+begin_src sql
+  select cap, multe
+  from capMulte
+  where multe >= all (select multe from capMulte)
+#+end_src
+
+caso estremo nessuna multa
+ma chissene

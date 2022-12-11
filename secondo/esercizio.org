@@ -1,0 +1,125 @@
+** Esercizio
+trovare le coperture minime per i seguenti insiemi
+
+si ricorda che la copertura minima è
+ 1. rendi tutte le relazioni con un coso a sinistra
+ 2. togli relazioni inutili
+ 3. togli elementi estranei
+
+*** Primo
+abbiamo
+ - $AC \to B$
+ - $D \to E$
+ - $B \to E$
+ - $BE \to D$
+ - $A \to D$
+ - $E \to C$
+
+iniziamo con $(B \to E) \Rightarrow (B \to BE)$, ma $BE \to D$ quindi
+$(B \to BE \to D) \Rightarrow (B \to D)$, quindi la $E$ è estranea, arriviamo quidi a
+ - $AC \to B$
+ - $D \to E$
+ - $B \to E$
+ - $B \to D$
+ - $A \to D$
+ - $E \to C$
+
+qui possiamo vedere che
+$(A \to D, D \to E, E \to C)
+\Rightarrow (A \to D \to E \to C)
+\Rightarrow (A \to AC)$
+quindi $A \to AC \to B$, la $C$ è estranea
+
+ - $A \to B$
+ - $D \to E$
+ - $B \to E$
+ - $B \to D$
+ - $A \to D$
+ - $E \to C$
+
+visto che quest'affare l'è finito a essere un dag,
+facciamo prima a disegnarlo, e si nota che (guardando frecciette su un foglio)
+
+$A \to B \to D$ e $A \to D$, sono entrambi presenti nello schema, ma il secondo te lo
+ricavi dal primo senza troppi problemi e puoi toglierlo, quindi
+
+e che $B \to D \to E$ e $B \to E$ fanno la stessa fine
+
+ - $A \to B$
+ - $B \to D$
+ - $D \to E$
+ - $E \to C$
+
+credo che sia una copertura minima
+
+
+*** Secondo
+ - $ABC \to DE$
+ - $C \to D$
+ - $BC \to A$
+ - $D \to A$
+   
+$BC \to A \Rightarrow A$ estraneo in $ABC \to DE$
+$BC \to DE \to$
+ - $BC \to D$
+ - $BC \to E$
+$C \to D$ quindi $BC \to D$ si toglie   
+ - $C \to D$
+ - $BC \to E$
+ - $BC \to A$
+ - $D \to A$
+
+$C \to D \to A$ quindi in $BC \to A$, $B$ è estraneo
+
+ - $C \to D$
+ - $C \to A$
+ - $BC \to E$
+ - $D \to A$
+
+*** Terzo
+ - $AB \to D$
+ - $C \to E$
+ - $DE \to A$
+ - $C \to D$
+
+$C \to D$
+$C \to E$
+$C \to DE$
+$DE \to A$
+$C \to DE \to AB \to D$
+$C \to A$
+$C \to B$
+$C \to D$
+$C \to E$
+$C$ è chiave
+
+ma questo mi sa che è già minimo
+
+*** Quarto
+AB D
+C EA
+CE DA
+B C
+
+C E
+quindi la E in CE \to DA estranea
+C E
+C A
+C D
+
+visto che
+B C
+B C A
+B A
+la A in AB D estranea
+visto che
+B C
+C D
+allora B D non serve
+
+B C
+C A
+C D
+C E
+
+   

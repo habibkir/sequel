@@ -1,0 +1,106 @@
+* Il primo
+
+In questi casi quando si fa un join esterno, tutte le condizioni vanno infilate nella on
+del join, se le vai a mettere nella where il where andrà a linciare le righe con campi
+nulli introdotti dal join esterno.
+
+Testa di cazzo.
+
+#+begin_src sql
+  select codice from controllo
+  where codice not in
+  (select ce.controllo
+  from intervento i join controlloEseguito ce
+  on intervento = ce.<boh>)
+#+end_src
+
+* Il secondo
+il codice dei ricambi mai sostituiti negli interventi successivi al 2 2 2022
+
+#+begin_src sql
+  select codice from ricambio
+  where codice not in
+  (select ...) -- qui mi sono un po' perso
+#+end_src
+
+* Il terzo
+il ricambio più sostituito nelle auto con più di tot km
+
+crea una vista in cui per ogni ricambio conta quante volte è sostituito
+in quanti interventi è stato sostituito
+poi vai a vedere la riga massimale in questo caso
+#+begin_src sql
+  create view numerosost(ricambio, num) as
+  select ricambio, count(codice)
+  from intervento i join sostituzioneRicambio sr
+  on intervento = codice and km > 5000
+  group by ricambio
+
+  select codice, descrizione
+  from ricambio join numerosost on codice = ricambio
+  where num = (select max(num) from numerosost)
+#+end_src
+
+* Il primo
+numero medio di controlli fatti in un intervento di manutenzione/riparazione
+
+sta tutto scritto in =controlloEseguito= quindi si fa una vista, anche qui nonostante
+tantissime volte lo abbia detto che non si possono nidificare operatori aggregati, li
+avete aggregati, bellissime teste di cazzo
+
+#+begin_src sql
+  crete view numeroc(intervento numero) as
+
+  select avg(num)
+  from numeroc
+#+end_src
+
+* L'ultima
+
+costo medio degli interventi
+
+costi sono
+ - di manodopera $\to$ indicato in controlloEseguito (numero di minuti)
+ - di ricambii $\to$ indicato in (SostituzioneRicambio $\iff$ Ricambio)
+
+vanno controllati in select diverse
+se faccio in una stessa vista =sum(durata)= e =sum(ricambio)= in una stessa vista, in una
+stessa select, allora questo mi va a moltiplicare il costo di un controllo, lo faccio
+comparire tante righe quanti sono i ricambii che ho sostituito in quel controllo
+
+vanno fatte due viste per due costi
+ - una per la manodopera
+ - una per i ricambii
+
+#+begin_src sql
+  create view costoRic(intervento, costor) as
+  select intervento, sum(costo)
+  from sostituzioneRicambio sr join ricambio r on ricambio = codice
+  group by intervento
+
+  create view costoMan(intervento, costom) as
+  select intervento, sum(durata_controllo)
+  from controlloEseguito
+  group by intervento
+#+end_src
+
+in generale siccome qua la chiave di sostituzioneRicambio comprende anche ricambio, in uno
+stesso intervento e controllo possono essere sostituiti più ricambii, quindi a una stessa
+riga di controlloEseguito possono corrispondere più ricambii ricambiati.
+
+#+begin_src sql
+  select produttore, avg(costom + costor)
+  from auto, intervento i, costoRic r, costoMan m
+  where targa = auto and codice = r.intervento
+  and codice = m.intervento and km>50000
+  group by produttore
+#+end_src
+
+l'altra fila è uguale per le viste
+
+#+begin_src sql
+  select cilindrata, avg(costom + costor)
+  from auto ...
+  and cilindrata > ...
+  group by cilindrata.
+#+end_src

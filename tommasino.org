@@ -1,0 +1,49 @@
+per ogni dipartimento il numero di impiegati che partecipano a progetti con budget massimo
+
+vista che elenca tutti i progetti di budget massimo
+#+begin_src sql
+  create view maxBudg (proj) as
+  select codice
+  from progetto
+  where budget >= all(select budget from progetto);
+#+end_src
+
+vista delle matricole degli impiegati tali che
+#+begin_src sql
+  create view impiegatiFighi as
+  select impiegato
+  from pp
+  where progetto in (select proj from maxBudg);#+end_src
+#+end_src
+
+query che lega il dipartimento al numero di impiegati tali che
+#+begin_src sql
+  select d.codice, count(matricola)
+  from dipartimento d left join impiegato i on i.dipartimento = d.codice
+  where matricola in impiegatiFighi
+  group by d.codice;
+#+end_src
+
+al momento ho
+#+begin_src sql
+  select d.codice, count(matricola)
+  from dipartimento d left join impiegato i on i.dipartimento = d.codice
+  where matricola =any
+  (select * from impiegatiFighi) group by d.codice;
+#+end_src
+che runna ma non da tutti i dipartimenti
+
+
+grazie all'omonimo tommasino sono stato illuminato al
+#+begin_quote
+"non mettere where con join esterni,
+al massimo metti il coso dell where nel left join,
+così non ammazza righe"
+  -- San Tommaso
+#+end_quote
+#+begin_src sql
+  select d.codice, count(matricola)
+  from dipartimento d left join impiegato i
+  on (i.dipartimento = d.codice) and matricola =any
+  (select * from impiegatiFighi) group by d.codice;
+#+end_src

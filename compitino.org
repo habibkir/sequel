@@ -1,0 +1,168 @@
+* Schema
+
+ - *Paziente* : _cf_, nome, cognome, indirizzo, città, telefono
+ - *Medico* : _cf_, nome, cognome, indirizzo, città, telefono
+
+ - *PrenotazioneVisita* : _data_, _ora_, paziente, medico
+ - *Visita* : _codice_, data, paziente, medico, costo
+ - *DettaglioVisita* :  _visita_, _controllo_, inNorma, descrizione
+
+ - *Prescrizione* : _visita_, _farmaco_, posologia
+ - *Farmaco* : _codice_, nome
+
+* Query da fare
+ - Il numero di visite al termine delle quali non è stato prescritto
+   il farmaco F018
+ - Il numero di visite in cui non è stato effettuato il controllo C014
+ - Il medico che ha visitato il maggior numero di pazienti distinti
+ - Il paziente che è stato visitato dal maggior numero di medici
+   diversi
+ - Il numero medio di farmaci prescritti al termine delle visite \\
+   (ci vuole un join esterno visto che ci sono visite dove non
+   prescrivono un cazzo)
+ - Il numero medio di controlli fatti in una visita \\
+   (sempre un join esterno del cazzo)
+
+** Prima query
+
+numero di visite al termine delle quali non è stato prescritto
+
+numero di visite alla fine delle quali è stato prescritto il
+farmaco...
+visto che _visita_ _farmaco_ è chiave non posso prescriverlo più di
+una volta per visita \to n.visite = n.prescrizioni
+
+#+begin_src sql
+  select count(farmaco)
+  from prescrizione
+  where farmaco = F018
+#+end_src
+
+adesso ci serve il numero totale di visite
+
+#+begin_src sql
+  select count(*)
+  from visita
+#+end_src
+
+ora facciamo una piccolissima bestemmia
+
+#+begin_src sql
+    select
+  (select count(farmaco)
+    from prescrizione
+    where farmaco = F018)
+  -
+  (select count(*)
+  from visita)
+  as numero;
+#+end_src
+
+nota di mirkina
+
+#+begin_src sql
+    select
+  (select count(*)
+  from visita)
+  -
+  (select count(farmaco)
+    from prescrizione
+    where farmaco = F018)
+  as numero;
+#+end_src
+
+sono un pirla
+
+versione di mirko
+
+#+begin_src sql
+  select count(*) from
+  (select codice from visita
+  except
+  select visita
+  from prescrizione
+  where farmaco = F018)
+#+end_src
+
+** Seconda query
+il numero delle visite nelle quali non è stato effettuato il controllo
+C014
+
+in dettaglioVisita _visita_ _controllo_ non è chiave primaria
+quindi non posso fare lo stesso controllo due volte in una stessa
+visita
+quindi n.controllo = n.visite
+quindi ripeti la bestemmia di sopra
+
+** Terza query
+il medico che ha visitato il maggior numero di pazienti diversi
+
+qui va fatto il max di un count distinct \to due operatori aggregati
+\to vista
+
+#+begin_src sql
+  create view medipaz (medico, numero) as
+  select medico, count(distinct paziente)
+  from visita
+  group by medico;
+#+end_src
+
+e usi questa vista per fare
+
+#+begin_src sql
+  select medico from medipaz where numero = select(max(numero) from medipaz)
+#+end_src
+
+** Quarta query
+il paziente che è stato visitato dal maggior numero di medici
+
+stessa cosa di sopra ma la view è select paziente count(distinct medico)
+
+** Quinta query
+il numero medio di farmaci prescritti al termine delle visite
+
+a boh fai la vista
+
+#+begin_src sql
+  create view visitaFarmaci(visita, farmaci) as
+  select v.codice, count(p.farmaco)
+  from visita v left join prescrizione p on v.codice = p.visita
+  group by v.codice;
+#+end_src
+
+e poi usi la vista
+
+#+begin_src sql
+  select avg(farmaci)
+  from visitaFarmaci;
+#+end_src
+
+** Sesta query
+il numero medio di controlli fatti in una visita
+
+in dettaglioVisita controllo visita è chiave primaria
+il numero medio di controlli è
+
+#+begin_src sql
+  select (select count(*) from dettaglioVisita) / (select count(*) from visita) as fanculo;
+#+end_src
+
+altrimenti la fai come facevi sopra coi farmaci
+quindi
+
+#+begin_src sql
+  create view visitaControlli(visita, numero) as
+  select v.codice, count(dv.controllo)
+  from visita v left join dettagliovisita  dv on v.codice = dv.visita
+  group by v.codide
+#+end_src
+
+e poi
+
+#+begin_src sql
+  select avg(numero)
+  from visitaControlli;
+#+end_src
+
+Sium 4, ti aspecto boogaloo
+Sium 5, Siumco drift
