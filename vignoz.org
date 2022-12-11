@@ -1,0 +1,104 @@
+** Primo
+ - a -> b -> d -> e -> c
+ - b -> d -> e -> c
+ - d -> e -> c
+ - e -> c
+
+ - chiave? a
+
+3NF
+ - a -> b
+ - b -> d
+ - d -> e
+ - e -> c
+   
+è lossless join perchè sì
+ - a b c d e
+   a b - b c d e, nel secondo b è chiave
+ - b c d e
+   b d - c d e, nel secondo d è chiave
+ - c d e
+   d e, e c
+ - e c
+
+\forall dipendenza si crea una relazione (in questo caso) con chiave il membro a sinistra
+"noto anche come /determinante/"
+
+** Secondo
+ - bc -> e
+ - d -> a
+ - c -> d
+
+ - bc -> a
+ - bc -> b
+ - bc -> c
+ - bc -> d
+ - bc è chiave
+
+*** 3NF
+si divide per gli attr a sinistra
+si divide in gruppi con gli stessi determinanti
+ - _b_, _c_, e (se mettessimo anche d dipenderebbe parzialmente dalla chiave)
+ - _c_, d
+ - _d_, a
+
+e nella divisione c'è lossless join quando almeno una delle tabelle in cui abbiamo diviso
+ha come chiave una superchiave dello schema iniziale, della relazione di partenza
+
+* Individua copertura minima
+
+ 1. ognuna semplice (a destra solo 1)
+ 2. togli attr. estranei (cosi nel determinanate che non servono a una sega)
+ 3. elimina dipendenze funzionali ri *n* dondanti
+
+** Esempio
+ - AB -> C
+ - B -> A
+ - C -> A
+
+*** Estranei
+possiamo arrivare a una di queste?
+ - A -> C
+ - B -> C
+
+A -> AB
+A -> <qualcos'altro che> -> C
+visto che A non implica un cazzo non possiamo farlo
+
+procedimento
+ - B -> A, quindi
+ - B -> AB, e AB -> C, quindi
+ - B -> C, quindi A è estraneo
+
+
+*** Ridondanze?
+ - B -> C
+ - B -> A
+ - C -> A
+
+B -> C -> A   
+B -> A è ridondante, vale a dire, posso ottenerla dalle altre, quindi non me ne faccio un
+cazzo
+
+ - B -> C
+ - C -> A
+
+ecco la nostra copertura minima
+
+
+** Esercizi
+*** Primo
+ - AC -> B
+ - BE -> D
+ - D -> E
+ - B -> E
+ - A -> D
+ - E -> C
+
+
+** Normalizzazione
+ - A -> B
+ - B -> D
+ - B -> E
+ - E -> C
+   
