@@ -1,0 +1,31 @@
+* ecce homo
+schema
+ - persona :: _codice fiscale_, nome, cognome
+   le cui "sottoclassi" sono
+   - lavoratore :: _lavoro_
+   - disoccupato :: _tristezza_
+
+ - residenza :: _persona_, _casa_ \leftarrow persona lavora in modo obbligatorio
+ - lavoro :: _lavoratore_, _impiego_ \leftarrow lavoratore partecipa in modo obbligatorio
+ - tristezza :: _disoccupato_, _disoccupazione_ \leftarrow disoccupato partecipa in modo obbligatorio
+
+** se accorpo al padre
+ - persona :: _codice fiscale_, nome, cognome, lavoro, tristezza, ha_un_lavoro
+ - lavoro :: _persona_, _impiego_ \leftarrow persona partecipa in modo opzionale (la
+   persona di questa riga potrebbe essere disoccupata, questa era la relazoine per
+   lavoratore)
+ - tristezza :: _persona_, _disoccupazione_ \leftarrow persona partecipa in modo opzionale
+   (la persona di questa riga potrebbe avere un lavoro, questa relazione era per disoccupati)
+
+residenza resta quella
+   
+** se elimino il padre
+ - lavoratore :: _codice fiscale_, _lavoro_, nome, cognome
+ - disoccupato :: _codice fiscale_, _tristezza_, nome, cognome
+
+sia lavoratore che disoccupato partecipano in modo obbligatorio alla relazione residenza,
+quindi avremo
+ - residenza :: _lavoratore_, _casa_ \leftarrow lavoratore partecipa in modo obbligatorio,
+   è una persona, e le persone partecipano in modo obbligatorio
+ - residenza :: _disoccupato_, _casa_ \leftarrow disoccupato partecipa in modo
+   obbligatorio, è una persona, e le persone partecipano in modo obbligatorio
