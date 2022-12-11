@@ -97,8 +97,108 @@ ecco la nostra copertura minima
 
 
 ** Normalizzazione
+*** N-esimo per N non determinato da qualcuno che non sia il Vignozzi
+ - C -> E
+ - C -> A
+ - C -> D
+ - B -> C
+
+vatti a fare in culo, grazie mille
+
+B -> C
+C -> tutto il resto
+B chiave
+
+due gruppi
+ - R1 :: _B_, C
+ - R2 :: _C_, A, E, D \\
+   C foreign key ref R1
+queste sono in Boyce-Codd, perchè tutto dipende dalla chiave
+
+lossless join se
+se almeno una delle tabelle tra quelle in cui si divide ha come chiave cosa?
+Ha come chiave una superchiave della tabella di partenza!!!
+
+ - _A_, _B_, C D E
+   - _A_, C, D
+   - _B_, E
+   in questi casi di solito si aggiunge anche una tabella
+   - _A_, _B_ per tenere il lossless join  
+
+oh foreign key, shattered by someone, or something     
+
+2NF
+ogni attributo non \in chiave primaria dipende completamente dalla chiave primaria
+ovvero non dipende da sottinsimei stretti della chiave primaria
+
+3NF
+per ogni X -> A
+ - X superchiave, oppure
+ - A attributo primo, ovvero che appartiene a una chiave
+
+Boyce-Codd
+per ogni X -> A
+ - X superchiave, oppure
+
+**
+*** N+1 per solo Vignoz sa (quarto)
+ - AB -> D
+ - C -> E 
+ - DE -> A
+ - C -> D 
+
+chiave
+ - C -> DE -> A
+ - C -> ACDE
+ - CB chiave
+non in 2NF perchè
+
+ - AB -> D
+ - C -> E 
+ - DE -> A
+ - C -> D 
+
+dipendenze parziali dalla chiave   
+
+dividiamo in gruppi in base ai determinanti
+ - Broly :: _C_, D, E (dipende comunque dalla superchiave sono scemo)
+ - Radish :: _D_, _E_, A
+ - Bardak :: _A_, _B_, D (bardracca, che perde contro il bigné di giger)
+e per tenere la superchiave intatta
+ - _C_, _B_
+
+*** N+2 per solo Vignoz sa (quinto)
  - A -> B
- - B -> D
- - B -> E
- - E -> C
+ - D -> C
+ - A -> E
+ - BD -> A
+
+ - A -> ABE
+ - D -> C
+ - AD -> ABCDE
+ - AD -> chiave
+
+dividiamo per determinanti
+
+ - _A_, B, E
+ - _D_, C
+ - _B_, _D_, A
+ - _A_, _D_
    
+*** Vignozzi geniozzi
+ - A -> B
+ - D -> C
+ - A -> E
+ - BD -> A
+
+ - BD -> A
+   - D -> C
+   - A -> B
+   - A -> E
+quindi BD chiave     
+- _A_, B, E
+- _D_, C
+- _B_, _D_, A
+
+geniozzi  
+     
